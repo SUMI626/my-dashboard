@@ -663,8 +663,10 @@ name_col = col_map.get('이름', '이름')
 team_col = col_map.get('팀', '팀')
 
 # 1. 연인원: M열 '명' 값의 L열 실적 숫자를 모두 더한 값
+# [핵심 디버그 체크포인트]: '단위' 컬럼이 정확히 '명'이 아니라 '명 ' (공백 포함)이거나 
+# '명(실인원)' 등일 수 있으므로 includes 조건으로 완화
 if unit_col in filtered_df.columns:
-    is_person = filtered_df[unit_col].astype(str).str.strip() == '명'
+    is_person = filtered_df[unit_col].astype(str).str.contains('명', na=False)
     df_person = filtered_df[is_person].copy()
 else:
     df_person = filtered_df.copy()
