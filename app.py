@@ -139,24 +139,48 @@ def clean_and_map_data(df):
     col_disability_type = find_col(['장애유형', '장애종류']) or '장애유형'
     
     # 2. 고유 식별자 생성 (이름 + 생년월일 + 장애유형 + 장애정도)
-    # 중요: Google Sheets에서 생년월일이 행마다 다른 형식으로 반환될 수 있음.
-    # 예: '971012-1', '1997-10-12', '971012.0' -> 모두 동일 인물인데 다른 ID가 생성되는 문제 방지
-    # 해결책: 숫자만 추출하여 정규화 (이름/장애유형/장애정도는 공백·대소문자만 정리)
-    def normalize_id_part(series, is_date=False):
+    # ★핵심 문제: GSheets에서 같은 사람의 생년월일이 행마다 다른 형식으로 반환됨
+    # 예시: 어떤 행은 "971012-1" (텍스트), 다른 행은 "1997-10-12" (날짜 형식) → 다른 ID 생성 → 같은 사람이지만 다른 사람으로 집계
+    # ★해결: 날짜를 YYMMDD 6자리로 통일
+    def normalize_birth_col(series):
         s = series.fillna('').astype(str).str.strip()
-        if is_date:
-            # 날짜/주민번호 형식 정규화: 숫자만 추출 후 앞 6자리 사용
-            s = s.str.replace(r'[^0-9]', '', regex=True).str[:6]
-        else:
-            # 이름/장애유형/장애정도: 공백만 제거 (대소문자/특수문자 유지)
-            s = s.str.replace(r'\s+', '', regex=True)
-        return s
-    
+        
+        result = pd.Series([''] * len(s), index=s.index)
+        for idx, val in s.items():
+            if not val or val == 'nan':
+                result[idx] = ''
+                continue
+            # 1차 시도: pd.to_datetime으로 파싱 (1997-10-12, 1997/10/12 등의 완전한 날짜 형식)
+            try:
+                parsed = pd.to_datetime(val, errors='raise')
+                result[idx] = parsed.strftime('%y%m%d')  # → '971012'
+                continue
+            except:
+                pass
+            # 2차 시도: 숫자만 추출
+            digits = re.sub(r'[^0-9]', '', val)
+            if len(digits) >= 8:
+                # 19971012 → 앞 2자리가 19면 3번째부터 8자리 사용: 971012
+                if digits[:2] in ('19', '20'):
+                    result[idx] = digits[2:8]
+                else:
+                    result[idx] = digits[:6]
+            elif len(digits) >= 6:
+                result[idx] = digits[:6]
+            else:
+                result[idx] = digits
+        return result
+
+    def normalize_text_col(series):
+        return series.fillna('').astype(str).str.strip().str.replace(r'\s+', '', regex=True)
+
     id_parts = []
     for i, col in enumerate([col_name, col_birth, col_disability_type, col_disability]):
-        is_date_col = (i == 1)  # 생년월일(col_birth)만 날짜 정규화 적용
         if col in df.columns:
-            id_parts.append(normalize_id_part(df[col], is_date=is_date_col))
+            if i == 1:  # 생년월일만 날짜 정규화
+                id_parts.append(normalize_birth_col(df[col]))
+            else:
+                id_parts.append(normalize_text_col(df[col]))
         else:
             id_parts.append(pd.Series([''] * len(df), index=df.index))
             
