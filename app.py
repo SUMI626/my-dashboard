@@ -139,13 +139,26 @@ def clean_and_map_data(df):
     col_disability_type = find_col(['장애유형', '장애종류']) or '장애유형'
     
     # 2. 고유 식별자 생성 (이름 + 생년월일 + 장애유형 + 장애정도)
-    # 사용자 정의: "이름, 생년월일, 장애유형, 장애정도 4가지의 데이터 중복값을 제거한 값"
-    id_parts = []
-    for col in [col_name, col_birth, col_disability_type, col_disability]:
-        if col in df.columns:
-            id_parts.append(df[col].astype(str).str.strip().fillna(''))
+    # 중요: Google Sheets에서 생년월일이 행마다 다른 형식으로 반환될 수 있음.
+    # 예: '971012-1', '1997-10-12', '971012.0' -> 모두 동일 인물인데 다른 ID가 생성되는 문제 방지
+    # 해결책: 숫자만 추출하여 정규화 (이름/장애유형/장애정도는 공백·대소문자만 정리)
+    def normalize_id_part(series, is_date=False):
+        s = series.fillna('').astype(str).str.strip()
+        if is_date:
+            # 날짜/주민번호 형식 정규화: 숫자만 추출 후 앞 6자리 사용
+            s = s.str.replace(r'[^0-9]', '', regex=True).str[:6]
         else:
-            id_parts.append(pd.Series([''] * len(df)))
+            # 이름/장애유형/장애정도: 공백만 제거 (대소문자/특수문자 유지)
+            s = s.str.replace(r'\s+', '', regex=True)
+        return s
+    
+    id_parts = []
+    for i, col in enumerate([col_name, col_birth, col_disability_type, col_disability]):
+        is_date_col = (i == 1)  # 생년월일(col_birth)만 날짜 정규화 적용
+        if col in df.columns:
+            id_parts.append(normalize_id_part(df[col], is_date=is_date_col))
+        else:
+            id_parts.append(pd.Series([''] * len(df), index=df.index))
             
     if id_parts:
         df['고유ID'] = id_parts[0] + "_" + id_parts[1] + "_" + id_parts[2] + "_" + id_parts[3]
