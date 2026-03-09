@@ -148,16 +148,11 @@ def clean_and_map_data(df):
     actual_deg_col = '장애정도' if '장애정도' in df.columns else col_disability
     actual_team_col = '팀이름' if '팀이름' in df.columns else find_col(['팀', '부서', 'team'])
     
-    # ★ 핵심 수정: 이름이 같은 행 그룹 내에서 개인정보 채우기 (ffill+bfill)
-    if actual_name_col in df.columns:
-        for fill_col in [actual_birth_col, actual_type_col, actual_deg_col]:
-            if fill_col in df.columns:
-                df[fill_col] = df[fill_col].replace(['', 'nan', 'None', None], pd.NA)
-                df[fill_col] = df.groupby(actual_name_col)[fill_col].transform(
-                    lambda x: x.ffill().bfill()
-                )
-                df[fill_col] = df[fill_col].fillna('')
-
+    # ----------------------------------------------------
+    # ★ 기존의 ffill/bfill 로직 삭제
+    # 이름이 같다고 해서 생년월일/장애정도를 강제로 덮어씌우면 '동명이인' 데이터가 훼손됨.
+    # 빈 칸은 빈 칸 그대로 두어 서로 다른 사람으로 취급되도록 원복합니다.
+    # ----------------------------------------------------
     def normalize_birth_col(series):
         result = []
         for val in series.fillna('').astype(str):
@@ -189,6 +184,11 @@ def clean_and_map_data(df):
 
     if id_parts:
         df['고유ID'] = id_parts[0] + "_" + id_parts[1] + "_" + id_parts[2] + "_" + id_parts[3]
+        
+        # 이름/생년월일/유형/정도가 모두 공백인 경우 '___'가 생성되어 한 사람으로 뭉쳐버리는 문제 방지
+        mask_blank = df['고유ID'] == '___'
+        if mask_blank.any():
+            df.loc[mask_blank, '고유ID'] = '미상_' + df.index.astype(str)[mask_blank]
     else:
         df['고유ID'] = df.index.astype(str)
 
