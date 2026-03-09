@@ -761,9 +761,12 @@ with st.expander("🔍 [개발자 정보] 중복실인원 진단", expanded=Fals
     st.write(f"**④ actual_team_col:** `{actual_team_col}` | **team_col:** `{team_col}`")
 
     # [디버그용 임시 파일 저장] - 백그라운드에서 전체 데이터 상태 확인용
+    import os
     try:
-        valid_unique_df.to_csv("C:/tmp/valid_unique_debug.csv", index=False, encoding='utf-8-sig')
-        df.to_csv("C:/tmp/raw_df_debug.csv", index=False, encoding='utf-8-sig')
+        debug_dir = os.path.join(os.getcwd(), "debug_output")
+        os.makedirs(debug_dir, exist_ok=True)
+        valid_unique_df.to_csv(os.path.join(debug_dir, "valid_unique_debug.csv"), index=False, encoding='utf-8-sig')
+        df.to_csv(os.path.join(debug_dir, "raw_df_debug.csv"), index=False, encoding='utf-8-sig')
     except Exception as e:
         st.write(f"Debug save error: {e}")
 
