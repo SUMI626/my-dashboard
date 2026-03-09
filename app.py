@@ -189,8 +189,21 @@ def clean_and_map_data(df):
         mask_blank = df['고유ID'] == '___'
         if mask_blank.any():
             df.loc[mask_blank, '고유ID'] = '미상_' + df.index.astype(str)[mask_blank]
+            
+        # [진단용] 엑셀과 완전히 똑같이 공백/오타를 유지하는 Raw ID 생성 (사용자 수동 계산 비교용)
+        raw_id_parts = []
+        for col in [actual_name_col, actual_birth_col, actual_type_col, actual_deg_col]:
+            if col in df.columns:
+                raw_id_parts.append(df[col].fillna('').astype(str))
+            else:
+                raw_id_parts.append(pd.Series([''] * len(df), index=df.index))
+        df['raw_고유ID'] = raw_id_parts[0] + "_" + raw_id_parts[1] + "_" + raw_id_parts[2] + "_" + raw_id_parts[3]
+        if mask_blank.any():
+            df.loc[mask_blank, 'raw_고유ID'] = '미상_' + df.index.astype(str)[mask_blank]
+            
     else:
         df['고유ID'] = df.index.astype(str)
+        df['raw_고유ID'] = df.index.astype(str)
 
     # '실적' 강제 변환
     actual_perf_col = '실적' if '실적' in df.columns else col_performance
@@ -739,6 +752,10 @@ def get_biz_days(parsed_dates):
         "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-12-25",
         # 2026
         "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18", "2026-03-01", "2026-03-02",
+        "2025-05-05", "2025-05-06", "2025-06-06", "2025-08-15", "2025-10-03", "2025-10-05", 
+        "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-12-25",
+        # 2026
+        "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18", "2026-03-01", "2026-03-02",
         "2026-05-05", "2026-05-24", "2026-05-25", "2026-06-06", "2026-08-15", "2026-08-17",
         "2026-09-24", "2026-09-25", "2026-09-26", "2026-10-03", "2026-10-05", "2026-10-09",
         "2026-12-25"
@@ -771,12 +788,11 @@ with st.container(border=True):
         col4.metric("일평균 이용자", "-")
 
 # 디버그 정보 (중복실인원 진단용 - 이슈 해결 후 삭제)
-with st.expander("🔍 [개발자 정보] 중복실인원 진단", expanded=False):
-    st.write(f"**① valid_unique_df 총 행수(중복 포함):** `{len(valid_unique_df)}행` (이 값이 실인원 {총실인원}보다 훨씬 커야 정상)")
-    st.write(f"**② 실인원 (고유ID 종류):** `{총실인원}명`")
-    st.write(f"**③ 중복실인원 (고유ID+팀이름 조합):** `{중복실인원}명` (②보다 커야 정상)")
-    st.write(f"**④ actual_team_col:** `{actual_team_col}` | **team_col:** `{team_col}`")
-
+with st.expander("🔍 [개발자 정보] 실인원 비교 진단", expanded=False):
+    st.write(f"**① 현재 필터 지정 데이터 행수(단위=명/건):** `{len(df_person)}행` (연인원 계산 전 원본 행 수)")
+    st.write(f"**② 앱 계산 방식 (이름/날짜 공백 및 표기 오류 자동 교정):** 실인원 `{총실인원}명` / 중복실인원 `{중복실인원}명` (자동으로 동명이인과 오타를 정리한 가장 정확한 숫자)")
+    st.write(f"**③ 엑셀 수동 방식 (오타 방치):** 실인원 `{총실인원_raw}명` / 중복실인원 `{중복실인원_raw}명` (엑셀의 '중복된 항목 제거'와 100% 동일하게 계산한 숫자)")
+    
     # [디버그용 임시 파일 저장] - 백그라운드에서 전체 데이터 상태 확인용
     import os
     try:
