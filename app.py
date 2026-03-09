@@ -24,12 +24,14 @@ COLOR_PALETTE = [
     "#E98C8E", "#A4CAD2", "#F9D59B", "#BDBDBD"
 ]
 
+# 한글 폰트 로드 (모바일/태블릿 한글 깨짐 방지) - link 태그 방식이 @import보다 안정적
+st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;800&display=swap" rel="stylesheet">
+""", unsafe_allow_html=True)
+
 st.markdown(f"""
 <style>
-/* 한글 폰트 로드 (모바일/태블릿 한글 깨짐 방지) */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;800&display=swap');
-
-/* 전체 앱 폰트 적용 */
+/* 전체 앱 폰트 적용 (Noto Sans KR - 한글 지원) */
 html, body, .stApp, [class*="st-"], p, div, span, h1, h2, h3, h4, h5, h6, label, button {{
     font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important;
 }}
