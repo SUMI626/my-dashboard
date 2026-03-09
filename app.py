@@ -137,12 +137,21 @@ def clean_and_map_data(df):
     col_project = find_col(['세부사업', '사업명', '프로그램']) or '세부사업'
     col_residence = find_col(['거주지', '주소', '지역']) or '거주지'
     col_disability_type = find_col(['장애유형', '장애종류']) or '장애유형'
-    
-    # 2. 고유 식별자 생성 (이름 + 생년월일 + 장애유형 + 장애정도)
-    # [Checkpoint 1] GSheets 데이터 타입 정규화:
-    # 생년월일은 pd.to_datetime() 사용 시 모호한 파싱이 실제로 벌어짘 수 있음.
-    # 예: '971012-1' -> pd.to_datetime -> '1971-01-02' -> '%y%m%d' = '710102' (오분석)
-    # 넷 안전한 방법: 숫자만 추출하면 YYMMDD 형식 일관성 보장
+
+    # ★ 핵심 수정: GSheets 데이터에서 같은 사람의 개인정보(생년월일 등)가
+    # 일부 행에만 입력되어 있고 나머지 행은 빈칸인 경우가 많음.
+    # 해결: 이름이 같은 행 그룹 내에서 개인정보를 앞뒤로 채우기(ffill+bfill)
+    # ※ ffill: 아래 행의 빈칸을 위에서 채움, bfill: 위 행의 빈칸을 아래서 채움
+    if col_name in df.columns:
+        for fill_col in [col_birth, col_disability_type, col_disability]:
+            if fill_col in df.columns:
+                # None/NaN → NaN으로 통일 후 이름 기준 그룹 내에서 ffill+bfill
+                df[fill_col] = df[fill_col].replace(['', 'nan', 'None', None], pd.NA)
+                df[fill_col] = df.groupby(col_name)[fill_col].transform(
+                    lambda x: x.ffill().bfill()
+                )
+                df[fill_col] = df[fill_col].fillna('')  # 그래도 남은 빈칸은 빈문자열로
+
     def normalize_birth_col(series):
         result = []
         for val in series.fillna('').astype(str):
@@ -150,18 +159,13 @@ def clean_and_map_data(df):
             if not val or val in ('nan', 'None', ''):
                 result.append('')
                 continue
-            # 숫자만 추출
             digits = re.sub(r'[^0-9]', '', val)
             if len(digits) >= 8 and digits[:2] in ('19', '20'):
-                # YYYYMMDD 형식 (GSheets 날짜 셀)
-                # 19971012 -> 971012
-                result.append(digits[2:8])
+                result.append(digits[2:8])   # YYYYMMDD → YYMMDD
             elif len(digits) >= 6:
-                # YYMMDD 또는 YYMMDD-성별 형식
-                # 971012, 971012-1 -> 971012
-                result.append(digits[:6])
+                result.append(digits[:6])    # YYMMDD or YYMMDD-성별 → YYMMDD
             else:
-                result.append(digits)  # 빈값 등 대비
+                result.append(digits)
         return pd.Series(result, index=series.index)
 
     def normalize_text_col(series):
@@ -170,13 +174,13 @@ def clean_and_map_data(df):
     id_parts = []
     for i, col in enumerate([col_name, col_birth, col_disability_type, col_disability]):
         if col in df.columns:
-            if i == 1:  # 생년월일만 날짜 정규화
+            if i == 1:
                 id_parts.append(normalize_birth_col(df[col]))
             else:
                 id_parts.append(normalize_text_col(df[col]))
         else:
             id_parts.append(pd.Series([''] * len(df), index=df.index))
-            
+
     if id_parts:
         df['고유ID'] = id_parts[0] + "_" + id_parts[1] + "_" + id_parts[2] + "_" + id_parts[3]
     else:
@@ -756,6 +760,13 @@ with st.expander("🔍 [개발자 정보] 중복실인원 진단", expanded=Fals
     st.write(f"**③ 중복실인원 (고유ID+팀이름 조합):** `{중복실인원}명` (②보다 커야 정상)")
     st.write(f"**④ actual_team_col:** `{actual_team_col}` | **team_col:** `{team_col}`")
 
+    # [디버그용 임시 파일 저장] - 백그라운드에서 전체 데이터 상태 확인용
+    try:
+        valid_unique_df.to_csv("C:/tmp/valid_unique_debug.csv", index=False, encoding='utf-8-sig')
+        df.to_csv("C:/tmp/raw_df_debug.csv", index=False, encoding='utf-8-sig')
+    except Exception as e:
+        st.write(f"Debug save error: {e}")
+
     # 팀이름 분포 확인
     if actual_team_col and actual_team_col in valid_unique_df.columns:
         team_dist = valid_unique_df[actual_team_col].value_counts()
@@ -777,8 +788,15 @@ with st.expander("🔍 [개발자 정보] 중복실인원 진단", expanded=Fals
         sample = valid_unique_df[valid_unique_df[name_col_check].astype(str).str.contains('이준승', na=False)]
         if not sample.empty:
             show_cols = ['고유ID', name_col_check, actual_team_col] if actual_team_col else ['고유ID', name_col_check]
-            st.write("**⑦ 이준승 데이터 샘플:**")
+            st.write("**⑦ 이준승 데이터 샘플 (valid_unique_df 내):**")
             st.dataframe(sample[show_cols].head(10))
+            
+        raw_sample = df[df[name_col_check].astype(str).str.contains('이준승', na=False)]
+        if not raw_sample.empty:
+            st.write("**⑧ 이준승 데이터 샘플 (원본 raw df 내):**")
+            # 주요 컬럼만 출력
+            cols_to_show = [c for c in ['팀이름', name_col_check, '단위', '명/건', '생년월일', '장애유형', '장애정도'] if c in raw_sample.columns]
+            st.dataframe(raw_sample[cols_to_show].head(10))
 
 # ================= 연인원 전용 차트 함수 =================
 
