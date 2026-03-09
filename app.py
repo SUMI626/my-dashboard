@@ -699,8 +699,11 @@ if actual_unit_col:
 else:
     df_person = filtered_df.copy()
 
+# ★ 핵심 수정: '실적'값이 0이거나 비어있는 데이터는 수동 집계 시 제외되었을 확률이 100%이므로 필터링
 if performance_col in df_person.columns:
     df_person[performance_col] = pd.to_numeric(df_person[performance_col], errors='coerce').fillna(0)
+    # 실적이 1 이상인 실제 이용 데이터만 남김
+    df_person = df_person[df_person[performance_col] > 0].copy()
     총연인원 = df_person[performance_col].sum()
 else:
     총연인원 = len(df_person)
