@@ -135,22 +135,26 @@ def clean_and_map_data(df):
     col_date = find_col(['날짜', '일자', '일시']) or '날짜'
     col_team = find_col(['팀', '부서']) or '팀'
     col_project = find_col(['세부사업', '사업명', '프로그램']) or '세부사업'
-    col_residence = find_col(['거주지', '주소', '지역']) or '거주지'
-    col_disability_type = find_col(['장애유형', '장애종류']) or '장애유형'
-
-    # ★ 핵심 수정: GSheets 데이터에서 같은 사람의 개인정보(생년월일 등)가
-    # 일부 행에만 입력되어 있고 나머지 행은 빈칸인 경우가 많음.
-    # 해결: 이름이 같은 행 그룹 내에서 개인정보를 앞뒤로 채우기(ffill+bfill)
-    # ※ ffill: 아래 행의 빈칸을 위에서 채움, bfill: 위 행의 빈칸을 아래서 채움
-    if col_name in df.columns:
-        for fill_col in [col_birth, col_disability_type, col_disability]:
+    # ----------------------------------------------------
+    # ★ 근본적인 해결책: GSheets의 실제 컬럼명 우선 사용
+    # col_map (find_col) 로직이 GSheets 환경에서 오작동하는 것을 방지하기 위해,
+    # 스프레드시트에 고정된 실제 컬럼명을 최우선으로 찾습니다.
+    # ----------------------------------------------------
+    actual_name_col = '이름' if '이름' in df.columns else col_name
+    actual_birth_col = '생년월일' if '생년월일' in df.columns else col_birth
+    actual_type_col = '장애유형' if '장애유형' in df.columns else col_disability_type
+    actual_deg_col = '장애정도' if '장애정도' in df.columns else col_disability
+    actual_team_col = '팀이름' if '팀이름' in df.columns else find_col(['팀', '부서', 'team'])
+    
+    # ★ 핵심 수정: 이름이 같은 행 그룹 내에서 개인정보 채우기 (ffill+bfill)
+    if actual_name_col in df.columns:
+        for fill_col in [actual_birth_col, actual_type_col, actual_deg_col]:
             if fill_col in df.columns:
-                # None/NaN → NaN으로 통일 후 이름 기준 그룹 내에서 ffill+bfill
                 df[fill_col] = df[fill_col].replace(['', 'nan', 'None', None], pd.NA)
-                df[fill_col] = df.groupby(col_name)[fill_col].transform(
+                df[fill_col] = df.groupby(actual_name_col)[fill_col].transform(
                     lambda x: x.ffill().bfill()
                 )
-                df[fill_col] = df[fill_col].fillna('')  # 그래도 남은 빈칸은 빈문자열로
+                df[fill_col] = df[fill_col].fillna('')
 
     def normalize_birth_col(series):
         result = []
@@ -172,7 +176,7 @@ def clean_and_map_data(df):
         return series.fillna('').astype(str).str.strip().str.replace(r'\s+', '', regex=True)
 
     id_parts = []
-    for i, col in enumerate([col_name, col_birth, col_disability_type, col_disability]):
+    for i, col in enumerate([actual_name_col, actual_birth_col, actual_type_col, actual_deg_col]):
         if col in df.columns:
             if i == 1:
                 id_parts.append(normalize_birth_col(df[col]))
@@ -186,16 +190,16 @@ def clean_and_map_data(df):
     else:
         df['고유ID'] = df.index.astype(str)
 
-    # [Checkpoint 1] '실적' 콜럼을 모두 숫자형으로 강제 변환 (GSheets에서 문자열로 더와오는 경우 대비)
-    col_performance = find_col(['실적', '췄터', '수']) or '실적'
-    if col_performance in df.columns:
-        df[col_performance] = pd.to_numeric(df[col_performance], errors='coerce').fillna(0)
+    # '실적' 강제 변환
+    actual_perf_col = '실적' if '실적' in df.columns else col_performance
+    if actual_perf_col in df.columns:
+        df[actual_perf_col] = pd.to_numeric(df[actual_perf_col], errors='coerce').fillna(0)
         
-    # 3. 빈칸 채우기
+    # 빈칸 채우기
     if col_basic in df.columns:
         df[col_basic] = df[col_basic].fillna('비수급')
-    if col_disability in df.columns:
-        df[col_disability] = df[col_disability].fillna('정보없음')
+    if actual_deg_col in df.columns:
+        df[actual_deg_col] = df[actual_deg_col].fillna('정보없음')
         
     # 4. 날짜 데이터 변환 (예: '2026년 1월 2일 금요일' -> datetime)
     if col_date in df.columns:
@@ -658,15 +662,24 @@ if '_연령대' in filtered_df.columns:
 
 # ================= 핵심 지표 계산 =================
 performance_col = col_map.get('실적', '실적')
-unit_col = col_map.get('단위', '명/건')
 name_col = col_map.get('이름', '이름')
 team_col = col_map.get('팀', '팀')
 
+# ★ 근본적인 해결책: 컬럼 자동 매핑(col_map)이 GSheets에서 오작동하고 있을 확률이 높음.
+# 스프레드시트의 실제 컬럼명인 '명/건'을 명시적으로 찾아 사용.
+actual_unit_col = None
+if '명/건' in filtered_df.columns:
+    actual_unit_col = '명/건'
+elif col_map.get('단위') in filtered_df.columns:
+    actual_unit_col = col_map.get('단위')
+elif '단위' in filtered_df.columns:
+    actual_unit_col = '단위'
+
 # 1. 연인원: M열 '명' 값의 L열 실적 숫자를 모두 더한 값
-# [핵심 디버그 체크포인트]: '단위' 컬럼이 정확히 '명'이 아니라 '명 ' (공백 포함)이거나 
-# '명(실인원)' 등일 수 있으므로 includes 조건으로 완화
-if unit_col in filtered_df.columns:
-    is_person = filtered_df[unit_col].astype(str).str.contains('명', na=False)
+if actual_unit_col:
+    # 엑셀/시트 특성상 공백이 섞일 수 있으므로 strip() 후 확인 (contains는 '건'도 잡을 위험이 있어 롤백)
+    cleaned_unit = filtered_df[actual_unit_col].astype(str).str.strip()
+    is_person = (cleaned_unit == '명') | (cleaned_unit == '명(실인원)')
     df_person = filtered_df[is_person].copy()
 else:
     df_person = filtered_df.copy()
