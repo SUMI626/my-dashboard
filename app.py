@@ -690,33 +690,36 @@ elif col_map.get('단위') in filtered_df.columns:
 elif '단위' in filtered_df.columns:
     actual_unit_col = '단위'
 
-# 1. 연인원: M열 '명' 값의 L열 실적 숫자를 모두 더한 값
+# ================================================================
+# 지표별 데이터 소스 분리
+# - 연인원: 명/건='명' 인 행만 → 실적 합계
+# - 실인원/중복실인원: 필터 적용된 전체 행(명+건 모두) → 중복 제거 카운트
+#   (사용자 수동 계산 방식: 1월 전체 → 이름+생년월일+장애유형+장애정도 기준 중복 항목 제거)
+# ================================================================
+
+# 1. 연인원: 단위='명' 행의 실적 합계
 if actual_unit_col:
-    # 엑셀/시트 특성상 공백이 섞일 수 있으므로 strip() 후 확인 (contains는 '건'도 잡을 위험이 있어 롤백)
     cleaned_unit = filtered_df[actual_unit_col].astype(str).str.strip()
     is_person = (cleaned_unit == '명') | (cleaned_unit == '명(실인원)')
     df_person = filtered_df[is_person].copy()
 else:
     df_person = filtered_df.copy()
 
-# ★ 핵심 수정: '실적'값이 0이거나 비어있는 데이터는 수동 집계 시 제외되었을 확률이 100%이므로 필터링
 if performance_col in df_person.columns:
     df_person[performance_col] = pd.to_numeric(df_person[performance_col], errors='coerce').fillna(0)
-    # 실적이 1 이상인 실제 이용 데이터만 남김
-    df_person = df_person[df_person[performance_col] > 0].copy()
     총연인원 = df_person[performance_col].sum()
 else:
     총연인원 = len(df_person)
 
-# 실인원 및 중복실인원을 구하기 위해 이름에 '기타'인 사람 제외
-if name_col in df_person.columns:
-    is_etc = df_person[name_col].astype(str).str.contains('기타', na=False)
-    valid_unique_df = df_person[~is_etc].copy()
+# 2. 실인원/중복실인원: 명+건 포함한 전체 filtered_df에서 중복 제거
+# (구글 시트 수동 계산: 1월 전체 행에서 이름·생년월일·장애유형·장애정도 기준 중복항목 삭제)
+if name_col in filtered_df.columns:
+    is_etc = filtered_df[name_col].astype(str).str.contains('기타', na=False)
+    valid_unique_df = filtered_df[~is_etc].copy()
 else:
-    valid_unique_df = df_person.copy()
+    valid_unique_df = filtered_df.copy()
 
-# 2. 실인원: 이름, 생년월일, 장애유형, 장애정도로 중복 제거 (기타 제외)
-# [Checkpoint 2] NaN 처리: 고유ID가 빈값인 행은 제외
+# 고유ID가 빈값인 행 제외
 valid_unique_df = valid_unique_df.loc[
     valid_unique_df['고유ID'].notna() & 
     (valid_unique_df['고유ID'].astype(str).str.strip() != '') &
@@ -726,11 +729,9 @@ valid_unique_df = valid_unique_df.loc[
 총실인원 = valid_unique_df['고유ID'].nunique()
 총실인원_raw = valid_unique_df['raw_고유ID'].nunique()
 
-# 3. 중복실인원: 이름, 생년월일, 장애유형, 장애정도, 팀이름 5가지 조합으로 중복 제거
-# [Checkpoint 3] team_col = '팀이름'이 확인됨, 해당 콜럼으로 직접 집계
-actual_team_col = team_col  # 어떤 콜럼이 팀 콜럼인지 두 번 확인: col_map의 '팀'값이 파인된 실제 콜럼명
+# 3. 중복실인원: 이름+생년월일+장애유형+장애정도+팀이름 5가지 기준 중복 제거
+actual_team_col = team_col
 if actual_team_col not in valid_unique_df.columns:
-    # fallback: 직접 탐색
     for c in valid_unique_df.columns:
         if '팀' in str(c) or '부서' in str(c) or 'team' in str(c).lower():
             actual_team_col = c
@@ -742,7 +743,7 @@ if actual_team_col in valid_unique_df.columns:
 else:
     중복실인원 = 총실인원
     중복실인원_raw = 총실인원_raw
-    actual_team_col = f"[ERROR] '팀' 콜럼을 찾을 수 없음. valid_unique_df 콜럼: {list(valid_unique_df.columns)}"
+    actual_team_col = f"[ERROR] '팀' 콜럼을 찾을 수 없음."
 
 # 4. 일평균 이용자: 연인원 / 운영 일수 (주말 및 법정공휴일 제외)
 def get_biz_days(parsed_dates):
@@ -817,12 +818,22 @@ with st.expander("🔍 [개발자 정보] 실인원 비교 진단", expanded=Fal
     
     # 여러 팀에 걸쳐 나온 이용자 확인
     if actual_team_col and actual_team_col in valid_unique_df.columns:
-        multi_team = valid_unique_df.groupby('고유ID')[actual_team_col].nunique()
-        multi_team_users = multi_team[multi_team > 1]
-        st.write(f"**⑥ 여러 팀을 이용한 이용자 수:** `{len(multi_team_users)}명` (이 숫자가 0이면 데이터상 중복없음)")
-        if not multi_team_users.empty:
-            st.write("샘플 (고유ID, 팀 수):")
-            st.dataframe(multi_team_users.head(5))
+        # 팀 개수 계산
+        team_counts = valid_unique_df.groupby('고유ID')[actual_team_col].nunique()
+        multi_team_ids = team_counts[team_counts > 1].index
+        
+        # 이름과 엮인 팀 목록 추출
+        if len(multi_team_ids) > 0:
+            multi_team_df = valid_unique_df[valid_unique_df['고유ID'].isin(multi_team_ids)]
+            # 팀 이름을 쉼표로 연결
+            team_names = multi_team_df.groupby('고유ID')[actual_team_col].unique().apply(lambda x: ', '.join(map(str, x)))
+            team_names.name = '팀이름(목록)'
+            
+            st.write(f"**⑥ 여러 팀을 이용한 이용자 수:** `{len(multi_team_ids)}명` (이 숫자가 0이면 데이터상 중복없음)")
+            st.write("샘플 (여러 팀 참여 이력):")
+            st.dataframe(team_names.reset_index().head(5), height=200)
+        else:
+            st.write(f"**⑥ 여러 팀을 이용한 이용자 수:** `0명` (데이터상 중복없음)")
 
     # 이준승 샘플 조회
     name_col_check = col_map.get('이름', '이름')
