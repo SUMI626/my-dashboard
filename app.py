@@ -547,13 +547,13 @@ def checkbox_group(label, options, key_prefix, is_sidebar=True, expanded=False, 
         new_val = st.session_state[all_key]
         for i in range(len(options)):
             st.session_state[f"{key_prefix}_{i}"] = new_val
-        st.rerun() # 상태 변경 후 UI 업데이트를 위해 rerun 호출
+        # st.rerun() 제거: 콜백 내부에서는 no-op이기 때문
 
     # 3. 콜백 함수: 개별 항목이 바뀔 때
     def on_item_change():
         is_all_checked = all(st.session_state.get(f"{key_prefix}_{i}", False) for i in range(len(options)))
         st.session_state[all_key] = is_all_checked
-        st.rerun() # 상태 변경 후 UI 업데이트를 위해 rerun 호출
+        # st.rerun() 제거: 콜백 내부에서는 no-op이기 때문
 
     container = st.sidebar.expander(label, expanded=expanded) if is_sidebar else st.container()
     
@@ -646,11 +646,22 @@ else:
 # 2. 실인원: M열 '명' 데이터 중에서 이름, 생년월일, 장애유형, 장애정도 4가지의 데이터 중복값을 제거한 값
 총실인원 = valid_unique_df['고유ID'].nunique()
 
-# 3. 중복실인원: M열 '명' 데이터 중에서 이름, 생년월일, 장애유형, 장애정도, 팀이름 5가지의 데이터 중복값을 제거한 값
-if team_col in valid_unique_df.columns:
+# 3. 중복실인원: 이름, 생년월일, 장애유형, 장애정도, 팀이름 5가지 조합으로 중복 제거
+# 실제 팀 콜럼명을 네이버 디버깅으로 집계 (valid_unique_df의 콜럼에 팀 정보가 있는지 확인)
+actual_team_col = None
+for c in valid_unique_df.columns:
+    if '팀' in str(c) or '부서' in str(c) or 'team' in str(c).lower():
+        actual_team_col = c
+        break
+
+if actual_team_col:
+    중복실인원 = len(valid_unique_df[['고유ID', actual_team_col]].drop_duplicates())
+elif team_col in valid_unique_df.columns:
     중복실인원 = len(valid_unique_df[['고유ID', team_col]].drop_duplicates())
 else:
     중복실인원 = 총실인원
+    # 디버깅: 팀 콜럼을 찾지 못했으면 화면에 임시로 안내
+    actual_team_col = f"[DEBUG] team_col='{team_col}' 빨나 | 상단 20열: {list(valid_unique_df.columns[:20])}"
 
 # 4. 일평균 이용자: 연인원 / 운영 일수 (주말 및 법정공휴일 제외)
 def get_biz_days(parsed_dates):
@@ -691,16 +702,18 @@ with st.container(border=True):
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("총 연인원", f"{총연인원:,.0f} 명")
     col2.metric("총 실인원", f"{총실인원:,.0f} 명")
-
-    if team_col in valid_unique_df.columns:
-        col3.metric("중복 실인원", f"{중복실인원:,.0f} 명")
-    else:
-        col3.metric("중복 실인원", "-")
-
+    col3.metric("중복 실인원", f"{중복실인원:,.0f} 명")
     if biz_days > 0:
         col4.metric("일평균 이용자", f"{일평균이용자:,.1f} 명")
     else:
         col4.metric("일평균 이용자", "-")
+
+# 디버그 정보 (팀 컬럼명 확인용 - 이슈 해결 후 삭제)
+with st.expander("🔍 [개발자 정보] 컬럼명 확인", expanded=False):
+    st.write(f"**team_col (col_map 기준):** `{team_col}`")
+    st.write(f"**actual_team_col (직접 탐색):** `{actual_team_col}`")
+    st.write(f"**valid_unique_df 컬럼 목록:** `{list(valid_unique_df.columns)}`")
+    st.write(f"**중복실인원 계산값:** {중복실인원} | **총실인원:** {총실인원}")
 
 # ================= 연인원 전용 차트 함수 =================
 
