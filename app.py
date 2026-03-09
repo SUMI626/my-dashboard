@@ -642,11 +642,19 @@ selected_months = checkbox_group("월 선택", months, "month_filter")
 residence_opts = ['서울', '은평', '경기', '그외']
 selected_residence = checkbox_group("거주지 선택", residence_opts, "res_filter")
 
-# 4. 장애유형 필터 (체크박스)
-default_disabilities = ['지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애', '안면장애', '뇌전증장애', '호흡기장애', '장루요루장애', '간장애', '심장장애', '신장장애', '지적장애', '자폐성장애', '정신장애', '미등록', '비장애']
+# 4. 장애유형 필터 (체크박스) - 실제 데이터에서 동적으로 로드
 disability_col = col_map['장애유형']
 if disability_col in df.columns:
-    selected_disabilities = checkbox_group("장애유형 선택", default_disabilities, "dis_filter")
+    # 하드코딩 목록 대신 실제 데이터에 있는 값 전체를 사용 (순서는 고정 목록 기준 정렬)
+    preferred_order = ['지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애', '안면장애',
+                       '뇌전증장애', '호흡기장애', '장루요루장애', '간장애', '심장장애', '신장장애',
+                       '지적장애', '자폐성장애', '정신장애', '미등록', '비장애']
+    actual_disabilities = [str(x) for x in df[disability_col].dropna().unique() if str(x).strip() != '']
+    # 선호 순서대로 정렬 (목록에 없는 값은 뒤에 추가)
+    ordered = [d for d in preferred_order if d in actual_disabilities]
+    extras = sorted([d for d in actual_disabilities if d not in preferred_order])
+    all_disabilities = ordered + extras
+    selected_disabilities = checkbox_group("장애유형 선택", all_disabilities, "dis_filter")
 else:
     selected_disabilities = []
 
@@ -693,8 +701,8 @@ elif '단위' in filtered_df.columns:
 # ================================================================
 # 지표별 데이터 소스 분리
 # - 연인원: 명/건='명' 인 행만 → 실적 합계
-# - 실인원/중복실인원: 필터 적용된 전체 행(명+건 모두) → 중복 제거 카운트
-#   (사용자 수동 계산 방식: 1월 전체 → 이름+생년월일+장애유형+장애정도 기준 중복 항목 제거)
+# - 실인원/중복실인원: 명/건='명' 인 행만 기준 → 중복 제거 카운트
+#   ('건' 행에는 생년월일/장애유형/장애정도가 없으므로 실인원 계산 대상 외)
 # ================================================================
 
 # 1. 연인원: 단위='명' 행의 실적 합계
@@ -711,13 +719,12 @@ if performance_col in df_person.columns:
 else:
     총연인원 = len(df_person)
 
-# 2. 실인원/중복실인원: 명+건 포함한 전체 filtered_df에서 중복 제거
-# (구글 시트 수동 계산: 1월 전체 행에서 이름·생년월일·장애유형·장애정도 기준 중복항목 삭제)
-if name_col in filtered_df.columns:
-    is_etc = filtered_df[name_col].astype(str).str.contains('기타', na=False)
-    valid_unique_df = filtered_df[~is_etc].copy()
+# 2. 실인원: 단위='명' 행 중에서 이름에 '기타'인 사람 제외 후 중복 제거
+if name_col in df_person.columns:
+    is_etc = df_person[name_col].astype(str).str.contains('기타', na=False)
+    valid_unique_df = df_person[~is_etc].copy()
 else:
-    valid_unique_df = filtered_df.copy()
+    valid_unique_df = df_person.copy()
 
 # 고유ID가 빈값인 행 제외
 valid_unique_df = valid_unique_df.loc[
