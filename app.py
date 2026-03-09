@@ -32,7 +32,7 @@ st.markdown("""
 st.markdown(f"""
 <style>
 /* 전체 앱 폰트 적용 (Noto Sans KR - 한글 지원) */
-html, body, .stApp, [class*="st-"], p, div, span, h1, h2, h3, h4, h5, h6, label, button {{
+html, body, .stApp, p, div, span, h1, h2, h3, h4, h5, h6, label {{
     font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important;
 }}
 /* 1. 배경 설정 */
