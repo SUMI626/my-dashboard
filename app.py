@@ -396,9 +396,13 @@ def apply_chart_style(fig):
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color="#31333F"), # 전체 폰트 색상 강제 지정
-        xaxis=dict(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F")),
-        yaxis=dict(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F"))
     )
+    # 축(Axis) 스타일은 별도로 적용하여 파이/도넛 차트에서의 오류 방지
+    try:
+        fig.update_xaxes(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F"))
+        fig.update_yaxes(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F"))
+    except:
+        pass
     return fig
 
 # 1. 월별 이용자 추이 (선 그래프 + 전월대비 %)
