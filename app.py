@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import re
 import plotly.express as px
@@ -92,14 +93,32 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data
-def load_data(file_path):
+@st.cache_data(ttl=600)
+def load_data_excel(file_path):
     try:
         df = pd.read_excel(file_path)
+        return clean_and_map_data(df)
     except Exception as e:
         return pd.DataFrame(), str(e)
-    
-    # 1. 컬럼명 정제 (공백 제거 등)
+
+def load_data_gsheets(spreadsheet_url):
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        ws_name = "취합_자동"
+        try:
+            # 한글 시트명으로 시도
+            df = conn.read(spreadsheet=spreadsheet_url, worksheet=ws_name, ttl=10)
+        except Exception:
+            # 실패 시 첫 번째 시트(index 0)로 시도
+            df = conn.read(spreadsheet=spreadsheet_url, index=0, ttl=10)
+        return clean_and_map_data(df)
+    except Exception as e:
+        # repr(e)를 사용하여 인코딩 문제 없이 에러 메시지 출력
+        return pd.DataFrame(), f"GSheets Connection Error: {repr(e)}"
+
+def clean_and_map_data(df):
+    if df.empty:
+        return pd.DataFrame(), "데이터가 비어 있습니다."
     df.columns = df.columns.astype(str).str.strip()
     
     # 필수 컬럼 존재하는지 유연하게 찾기
@@ -120,17 +139,16 @@ def load_data(file_path):
     col_disability_type = find_col(['장애유형', '장애종류']) or '장애유형'
     
     # 2. 고유 식별자 생성 (이름 + 생년월일 + 장애유형 + 장애정도)
-    id_series = None
+    # 사용자 정의: "이름, 생년월일, 장애유형, 장애정도 4가지의 데이터 중복값을 제거한 값"
+    id_parts = []
     for col in [col_name, col_birth, col_disability_type, col_disability]:
         if col in df.columns:
-            part = df[col].astype(str).str.strip()
-            if id_series is None:
-                id_series = part
-            else:
-                id_series = id_series + "_" + part
-                
-    if id_series is not None:
-        df['고유ID'] = id_series
+            id_parts.append(df[col].astype(str).str.strip().fillna(''))
+        else:
+            id_parts.append(pd.Series([''] * len(df)))
+            
+    if id_parts:
+        df['고유ID'] = id_parts[0] + "_" + id_parts[1] + "_" + id_parts[2] + "_" + id_parts[3]
     else:
         df['고유ID'] = df.index.astype(str)
         
@@ -277,6 +295,8 @@ def load_data(file_path):
 
 # ================= 차트 유틸리티 및 심층 분석 함수 =================
 
+# ================= 차트 유틸리티 및 심층 분석 함수 =================
+
 def apply_chart_style(fig):
     """범례 크기 조정 및 연결선 제거 등 공통 스타일 적용"""
     fig.update_layout(
@@ -292,8 +312,14 @@ def apply_chart_style(fig):
 
 # 1. 월별 이용자 추이 (선 그래프 + 전월대비 %)
 def draw_monthly_trend(df_data):
+    performance_col = col_map.get('실적', '실적')
     if '월' in df_data.columns:
-        monthly_counts = df_data.groupby('월').size().reset_index(name='이용자수')
+        # '실적' 합계 기준으로 집계 (단위 '명' 데이터만 들어온 df_yeon 기준)
+        if performance_col in df_data.columns:
+            monthly_counts = df_data.groupby('월')[performance_col].sum().reset_index(name='이용자수')
+        else:
+            monthly_counts = df_data.groupby('월').size().reset_index(name='이용자수')
+            
         monthly_counts = monthly_counts.sort_values('월')
         
         # 전월 대비 증감률(%) 계산
@@ -303,13 +329,14 @@ def draw_monthly_trend(df_data):
         )
         
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (전월대비 증감률 포함)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (연인원 합계 기준)</div>", unsafe_allow_html=True)
             fig = px.line(monthly_counts, x='월', y='이용자수', markers=True,
                           text='이용자수',
                           hover_data={'증감률_텍스트': True, '이용자수': ':,.0f'})
             fig.update_traces(line_color=CHART_BLUE, marker=dict(size=10),
                               textposition='top center', texttemplate='<b>%{text:,.0f}</b>')
             fig.update_xaxes(dtick=1, labelalias={i: f"{i}월" for i in range(1, 13)})
+            fig.update_yaxes(title="연인원 합계")
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
     else:
         st.info("차트를 그릴 수 있는 월 데이터가 없습니다.")
@@ -443,22 +470,57 @@ def draw_age_charts(df_data, title_suffix):
 
 st.title("📊 이용자 현황 분석 대시보드")
 
-uploaded_file = st.file_uploader("📂 분석할 엑셀 파일(.xlsx)을 업로드해 주세요 (미업로드 시 기본 실적데이터 사용)", type=['xlsx'])
+# ================= 데이터 소스 설정 (메인 화면) =================
+# 여기에 사용할 구글 스프레드시트 주소를 고정으로 입력하세요.
+DEFAULT_GSHEETS_URL = "https://docs.google.com/spreadsheets/d/1T8QB5fQaTLzEYlV5mgphGd-n8pMGHdJzq4OZo-HeJoI/edit"
 
-import os
-if uploaded_file is not None:
-    data_source = uploaded_file
-else:
-    data_source = "2025실적데이터.xlsx"
-    if not os.path.exists(data_source):
-        st.error(f"기본 파일인 '{data_source}'을 찾을 수 없습니다.")
-        st.stop()
+with st.container(border=True):
+    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 설정</div>", unsafe_allow_html=True)
+    source_col, input_col = st.columns([1, 2])
+    
+    with source_col:
+        source_option = st.radio(
+            "분석할 데이터를 선택해 주세요:",
+            ["구글 스프레드시트 (실시간)", "로컬 엑셀 파일"],
+            index=0, # 구글 스프레드시트가 기본 선택되도록 변경
+            label_visibility="collapsed"
+        )
+    
+    with input_col:
+        if source_option == "구글 스프레드시트 (실시간)":
+            spreadsheet_url = st.text_input(
+                "🔗 구글 스프레드시트 URL:",
+                value=DEFAULT_GSHEETS_URL if DEFAULT_GSHEETS_URL != "여기에_사용하실_구글스프레드시트_링크를_넣어주세요" else "",
+                placeholder="https://docs.google.com/spreadsheets/d/...",
+                label_visibility="collapsed"
+            )
+            data_source = spreadsheet_url
+            if not spreadsheet_url:
+                st.warning("⚠️ 코드 내 DEFAULT_GSHEETS_URL에 주소를 고정해두거나, 텍스트 상자에 직접 입력해 주세요.")
+                st.stop() # URL이 없을 때만 중단
+        else:
+            uploaded_file = st.file_uploader("📂 엑셀 파일 업로드 (.xlsx)", type=['xlsx'], label_visibility="collapsed")
+            if uploaded_file is not None:
+                data_source = uploaded_file
+            else:
+                data_source = "2025실적데이터.xlsx"
+                st.info("ℹ️ 업로드된 파일이 없어 '2025실적데이터.xlsx'를 기본으로 사용합니다.")
 
 with st.spinner("데이터를 불러오고 처리하는 중입니다..."):
-    df, col_map = load_data(data_source)
+    if source_option == "로컬 엑셀 파일":
+        df, col_map = load_data_excel(data_source)
+    else:
+        # URL 형식 검증
+        if "docs.google.com/sheets" not in str(data_source) and "docs.google.com/spreadsheets" not in str(data_source):
+            df, col_map = pd.DataFrame(), "올바른 구글 스프레드시트 URL 형식이 아닙니다."
+        else:
+            df, col_map = load_data_gsheets(data_source)
 
+# 데이터 로딩 오류 처리
 if isinstance(col_map, str) or df.empty:
-    st.error("⚠️ 데이터 형식을 확인해 주세요. (필수 컬럼이 누락되었거나 데이터를 읽을 수 없습니다)")
+    error_msg = col_map if isinstance(col_map, str) else "데이터가 비어 있습니다."
+    st.error(f"⚠️ 데이터 처리 중 오류가 발생했습니다: {error_msg}")
+    st.info("💡 엑셀 파일의 컬럼명이나 구글 시트의 탭 이름('취합_자동') 및 공유 권한을 확인해 주세요.")
     st.stop()
 
 # ================= 필터 사이드바 =================
@@ -467,39 +529,41 @@ st.sidebar.header("🔍 필터 설정")
 def checkbox_group(label, options, key_prefix, is_sidebar=True, expanded=False, default_all=True):
     """
     세션 상태를 활용한 강력한 전체 선택/해제 기능이 포함된 체크박스 그룹입니다.
-    default_all=True: 최초 실행 시 모두 선택됨
-    default_all=False: 최초 실행 시 모두 해제됨
     """
+    # 키에 한글이 섞이면 윈도우 환경에서 인코딩 오류가 날 수 있어 ASCII 기반 인덱스 사용 권장
     all_key = f"{key_prefix}_all"
     
-    # 전체선택 콜백
-    def on_all_change():
-        is_all = st.session_state[all_key]
-        for opt in options:
-            st.session_state[f"{key_prefix}_{opt}"] = is_all
-            
-    # 개별 항목 콜백
-    def on_item_change():
-        all_checked = all(st.session_state.get(f"{key_prefix}_{opt}", False) for opt in options)
-        st.session_state[all_key] = all_checked
-
-    # 초기화: default_all 값에 따라 빈 리스트 또는 쿽리스트 로 시작
+    # 1. 초기화
     if all_key not in st.session_state:
         st.session_state[all_key] = default_all
-        for opt in options:
-            if f"{key_prefix}_{opt}" not in st.session_state:
-                st.session_state[f"{key_prefix}_{opt}"] = default_all
-
-    selected = []
     
-    # 컨테이너 결정 (사이드바 확장형 vs 일반 영역)
+    for i, opt in enumerate(options):
+        opt_key = f"{key_prefix}_{i}"
+        if opt_key not in st.session_state:
+            st.session_state[opt_key] = st.session_state[all_key]
+
+    # 2. 콜백 함수: 전체 선택 상태가 바뀔 때
+    def on_all_change():
+        new_val = st.session_state[all_key]
+        for i in range(len(options)):
+            st.session_state[f"{key_prefix}_{i}"] = new_val
+        st.rerun() # 상태 변경 후 UI 업데이트를 위해 rerun 호출
+
+    # 3. 콜백 함수: 개별 항목이 바뀔 때
+    def on_item_change():
+        is_all_checked = all(st.session_state.get(f"{key_prefix}_{i}", False) for i in range(len(options)))
+        st.session_state[all_key] = is_all_checked
+        st.rerun() # 상태 변경 후 UI 업데이트를 위해 rerun 호출
+
     container = st.sidebar.expander(label, expanded=expanded) if is_sidebar else st.container()
     
+    selected = []
     with container:
         st.checkbox("전체선택", key=all_key, on_change=on_all_change)
-        for opt in options:
-            opt_label = f"{opt}월" if key_prefix == "month" else str(opt)
-            if st.checkbox(opt_label, key=f"{key_prefix}_{opt}", on_change=on_item_change):
+        st.markdown('<div style="margin-top:-10px; margin-bottom:10px; border-top:1px solid #ddd;"></div>', unsafe_allow_html=True)
+        for i, opt in enumerate(options):
+            opt_label = f"{opt}월" if key_prefix == "month_filter" else str(opt) # Updated key_prefix check
+            if st.checkbox(opt_label, key=f"{key_prefix}_{i}", on_change=on_item_change):
                 selected.append(opt)
                 
     return selected
@@ -508,30 +572,30 @@ def checkbox_group(label, options, key_prefix, is_sidebar=True, expanded=False, 
 team_col = col_map['팀']
 if team_col in df.columns:
     teams = sorted([str(x) for x in df[team_col].dropna().unique()])
-    selected_teams = checkbox_group("팀 선택", teams, "team")
+    selected_teams = checkbox_group("팀 선택", teams, "team_filter")
 else:
     selected_teams = []
 
 # 2. 월 필터 (체크박스)
 months = list(range(1, 13))
-selected_months = checkbox_group("월 선택", months, "month")
+selected_months = checkbox_group("월 선택", months, "month_filter")
 
 # 3. 거주지 필터 (체크박스)
 residence_opts = ['서울', '은평', '경기', '그외']
-selected_residence = checkbox_group("거주지 선택", residence_opts, "residence")
+selected_residence = checkbox_group("거주지 선택", residence_opts, "res_filter")
 
 # 4. 장애유형 필터 (체크박스)
 default_disabilities = ['지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애', '안면장애', '뇌전증장애', '호흡기장애', '장루요루장애', '간장애', '심장장애', '신장장애', '지적장애', '자폐성장애', '정신장애', '미등록', '비장애']
 disability_col = col_map['장애유형']
 if disability_col in df.columns:
-    selected_disabilities = checkbox_group("장애유형 선택", default_disabilities, "disability")
+    selected_disabilities = checkbox_group("장애유형 선택", default_disabilities, "dis_filter")
 else:
     selected_disabilities = []
 
 # 5. 연령대 필터 (체크박스)
 age_groups = ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상', '정보없음']
 if '_연령대' in df.columns:
-    selected_ages = checkbox_group("연령대 선택", age_groups, "age")
+    selected_ages = checkbox_group("연령대 선택", age_groups, "age_filter")
 else:
     selected_ages = []
 
@@ -559,14 +623,13 @@ unit_col = col_map.get('단위', '명/건')
 name_col = col_map.get('이름', '이름')
 team_col = col_map.get('팀', '팀')
 
-# 단위가 '명'인 데이터만 필터링 (명확성을 위해 공백 제거 후 확인)
+# 1. 연인원: M열 '명' 값의 L열 실적 숫자를 모두 더한 값
 if unit_col in filtered_df.columns:
     is_person = filtered_df[unit_col].astype(str).str.strip() == '명'
     df_person = filtered_df[is_person].copy()
 else:
     df_person = filtered_df.copy()
 
-# 1. 연인원: '명' 단위인 데이터의 실적 합산
 if performance_col in df_person.columns:
     df_person[performance_col] = pd.to_numeric(df_person[performance_col], errors='coerce').fillna(0)
     총연인원 = df_person[performance_col].sum()
@@ -576,25 +639,48 @@ else:
 # 실인원 및 중복실인원을 구하기 위해 이름에 '기타'인 사람 제외
 if name_col in df_person.columns:
     is_etc = df_person[name_col].astype(str).str.contains('기타', na=False)
-    valid_unique_df = df_person[~is_etc]
+    valid_unique_df = df_person[~is_etc].copy()
 else:
-    valid_unique_df = df_person
+    valid_unique_df = df_person.copy()
 
-# 2. 실인원: 이름+생년월일+장애유형+장애정도(고유ID) 기준 중복 제거 값 (기타 제외)
+# 2. 실인원: M열 '명' 데이터 중에서 이름, 생년월일, 장애유형, 장애정도 4가지의 데이터 중복값을 제거한 값
 총실인원 = valid_unique_df['고유ID'].nunique()
 
-# 3. 중복실인원: 이름+생년월일+장애유형+장애정도+팀 기준으로 중복 제거 값 (기타 제외)
+# 3. 중복실인원: M열 '명' 데이터 중에서 이름, 생년월일, 장애유형, 장애정도, 팀이름 5가지의 데이터 중복값을 제거한 값
 if team_col in valid_unique_df.columns:
     중복실인원 = len(valid_unique_df[['고유ID', team_col]].drop_duplicates())
 else:
-    중복실인원 = 0
+    중복실인원 = 총실인원
 
-# 일평균이용자 계산 (총연인원 / 운영일수)
-# 운영일수: 데이터 내 평일(월~금) 개수만 산정하거나, 데이터상 존재하는 날짜 중 주말 아닌 날짜 산정
+# 4. 일평균 이용자: 연인원 / 운영 일수 (주말 및 법정공휴일 제외)
+def get_biz_days(parsed_dates):
+    if len(parsed_dates) == 0: return 0
+    start_date = parsed_dates.min().date()
+    end_date = parsed_dates.max().date()
+    
+    # 한국 법정공휴일 (2025-2026)
+    holidays = [
+        # 2025
+        "2025-01-01", "2025-01-28", "2025-01-29", "2025-01-30", "2025-03-01", "2025-03-03", 
+        "2025-05-05", "2025-05-06", "2025-06-06", "2025-08-15", "2025-10-03", "2025-10-05", 
+        "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-12-25",
+        # 2026
+        "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18", "2026-03-01", "2026-03-02",
+        "2026-05-05", "2026-05-24", "2026-05-25", "2026-06-06", "2026-08-15", "2026-08-17",
+        "2026-09-24", "2026-09-25", "2026-09-26", "2026-10-03", "2026-10-05", "2026-10-09",
+        "2026-12-25"
+    ]
+    holiday_set = set(pd.to_datetime(holidays).date)
+    
+    # 선택된 범위 내의 모든 날짜 생성
+    all_dates = pd.date_range(start=start_date, end=end_date).date
+    # 주말(5,6) 및 공휴일 제외
+    biz_list = [d for d in all_dates if d.weekday() < 5 and d not in holiday_set]
+    return len(biz_list)
+
 if '_ParsedDate' in filtered_df.columns:
-    valid_dates = pd.to_datetime(filtered_df['_ParsedDate'].dropna().unique())
-    # 주말(토=5, 일=6)을 제외한 날짜 수
-    biz_days = len([d for d in valid_dates if d.dayofweek < 5])
+    valid_dates = filtered_df['_ParsedDate'].dropna()
+    biz_days = get_biz_days(valid_dates)
 else:
     biz_days = 0
 
