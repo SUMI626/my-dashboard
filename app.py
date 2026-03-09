@@ -721,6 +721,7 @@ valid_unique_df = valid_unique_df.loc[
 ].copy()
 
 총실인원 = valid_unique_df['고유ID'].nunique()
+총실인원_raw = valid_unique_df['raw_고유ID'].nunique()
 
 # 3. 중복실인원: 이름, 생년월일, 장애유형, 장애정도, 팀이름 5가지 조합으로 중복 제거
 # [Checkpoint 3] team_col = '팀이름'이 확인됨, 해당 콜럼으로 직접 집계
@@ -734,8 +735,10 @@ if actual_team_col not in valid_unique_df.columns:
 
 if actual_team_col in valid_unique_df.columns:
     중복실인원 = len(valid_unique_df[['고유ID', actual_team_col]].drop_duplicates())
+    중복실인원_raw = len(valid_unique_df[['raw_고유ID', actual_team_col]].drop_duplicates())
 else:
     중복실인원 = 총실인원
+    중복실인원_raw = 총실인원_raw
     actual_team_col = f"[ERROR] '팀' 콜럼을 찾을 수 없음. valid_unique_df 콜럼: {list(valid_unique_df.columns)}"
 
 # 4. 일평균 이용자: 연인원 / 운영 일수 (주말 및 법정공휴일 제외)
