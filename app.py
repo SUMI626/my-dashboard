@@ -28,22 +28,36 @@ COLOR_PALETTE = [
 
 st.markdown(f"""
 <style>
-/* 1. 배경 설정 */
+/* 1. 전체 앱 기본 폰트 및 색상 강제 지정 (다크모드 대비) */
 .stApp {{
-    background-color: #f8f9fa;
+    background-color: white !important;
+    color: #31333f !important;
 }}
+
+/* 모든 텍스트 요소를 명시적으로 어두운 색으로 지정 */
+p, span, label, div[data-testid="stMarkdownContainer"] p {{
+    color: #31333f !important;
+}}
+
+/* 데이터 소스 라디오 버튼 글씨 */
+div[data-testid="stWidgetLabel"] p, div[data-testid="stRadio"] label {{
+    color: #31333f !important;
+    font-weight: 600 !important;
+}}
+
 /* 2. 메트릭(숫자) 강조 및 박스 스타일 */
 div[data-testid="stMetricValue"], .stMetricValue {{
-    font-size: 38px !important; /* 약간 축소 */
+    font-size: 38px !important;
     font-weight: 800 !important;
     color: {BRAND_RED} !important;
 }}
-/* 항목 이름 (총 연인원 등) 크기 */
+
+/* 항목 이름 (총 연인원 등) */
 div[data-testid="stMetricLabel"] p {{
     font-size: 16px !important;
     font-weight: 700 !important;
-    color: {BRAND_GRAY} !important;
-    margin-bottom: 0px !important; /* 라벨과 숫자 간격 줄임 */
+    color: #4D4D4D !important;
+    margin-bottom: 0px !important;
 }}
 /* 메트릭 박스 센터 정렬 및 간격 축소 */
 div[data-testid="stMetric"], .stMetric {{
@@ -372,15 +386,18 @@ def clean_and_map_data(df):
 # ================= 차트 유틸리티 및 심층 분석 함수 =================
 
 def apply_chart_style(fig):
-    """범례 크기 조정 및 연결선 제거 등 공통 스타일 적용"""
+    """범례 크기 조정 및 모든 텍스트 색상 강제 지정 (다크모드 대응)"""
     fig.update_layout(
-        legend=dict(itemsizing='constant', font=dict(size=14)),
-        margin=dict(t=10, b=50, l=50, r=50), # 상단 여백 최소화 (외부 타이틀용)
+        legend=dict(
+            itemsizing='constant', 
+            font=dict(size=14, color="#31333F") # 범례 글자색 강제 지정
+        ),
+        margin=dict(t=10, b=50, l=50, r=50),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color=BRAND_GRAY),
-        xaxis=dict(automargin=True), # 텍스트 오버랩 방지를 axis 설정으로 이동
-        yaxis=dict(automargin=True)
+        font=dict(color="#31333F"), # 전체 폰트 색상 강제 지정
+        xaxis=dict(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F")),
+        yaxis=dict(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F"))
     )
     return fig
 
