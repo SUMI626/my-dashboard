@@ -135,6 +135,8 @@ def clean_and_map_data(df):
     col_date = find_col(['날짜', '일자', '일시']) or '날짜'
     col_team = find_col(['팀', '부서']) or '팀'
     col_project = find_col(['세부사업', '사업명', '프로그램']) or '세부사업'
+    col_residence = find_col(['거주지', '주소', '지역']) or '거주지'
+    col_disability_type = find_col(['장애유형', '장애종류']) or '장애유형'
     # ----------------------------------------------------
     # ★ 근본적인 해결책: GSheets의 실제 컬럼명 우선 사용
     # col_map (find_col) 로직이 GSheets 환경에서 오작동하는 것을 방지하기 위해,
