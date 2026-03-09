@@ -24,17 +24,10 @@ COLOR_PALETTE = [
     "#E98C8E", "#A4CAD2", "#F9D59B", "#BDBDBD"
 ]
 
-# 한글 폰트 로드 (모바일/태블릿 한글 깨짐 방지) - link 태그 방식이 @import보다 안정적
-st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;800&display=swap" rel="stylesheet">
-""", unsafe_allow_html=True)
+
 
 st.markdown(f"""
 <style>
-/* 전체 앱 폰트 적용 (Noto Sans KR - 한글 지원) */
-html, body, .stApp, p, div, span, h1, h2, h3, h4, h5, h6, label {{
-    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important;
-}}
 /* 1. 배경 설정 */
 .stApp {{
     background-color: #f8f9fa;
@@ -229,19 +222,33 @@ def clean_and_map_data(df):
     if col_date in df.columns:
         def parse_korean_date(x):
             if pd.isna(x): return pd.NaT
-            x_str = str(x)
-            # 숫자 추출 (년, 월, 일)
+            if isinstance(x, (int, float)):
+                # 엑셀/구글시트 숫자형 날짜 처리 (1899-12-30 기준)
+                try:
+                    return pd.to_datetime(x, unit='D', origin='1899-12-30').replace(microsecond=0)
+                except:
+                    pass
+            
+            x_str = str(x).strip()
+            # 1. '2026-01-01 00:00:00' 형태 직접 파싱 시도 (숫자 추출 전 수행)
+            try:
+                dt = pd.to_datetime(x_str)
+                if pd.notna(dt): return dt
+            except:
+                pass
+
+            # 2. 숫자 추출 (년, 월, 일)
             nums = re.findall(r'\d+', x_str)
             if len(nums) >= 3:
                 try:
-                    return pd.to_datetime(f"{nums[0]}-{nums[1]}-{nums[2]}")
+                    # YYYY-MM-DD or YY-MM-DD
+                    y, m, d = int(nums[0]), int(nums[1]), int(nums[2])
+                    if y < 100: y += 2000
+                    return pd.to_datetime(f"{y}-{m}-{d}")
                 except:
                     pass
-            # 기본 파싱 시도
-            try:
-                return pd.to_datetime(x)
-            except:
-                return pd.NaT
+            
+            return pd.NaT
                 
         df['_ParsedDate'] = df[col_date].apply(parse_korean_date)
         df['월'] = df['_ParsedDate'].dt.month
@@ -629,7 +636,7 @@ def checkbox_group(label, options, key_prefix, is_sidebar=True, expanded=False, 
         st.checkbox("전체선택", key=all_key, on_change=on_all_change)
         st.markdown('<div style="margin-top:-10px; margin-bottom:10px; border-top:1px solid #ddd;"></div>', unsafe_allow_html=True)
         for i, opt in enumerate(options):
-            opt_label = f"{opt}월" if key_prefix == "month_filter" else str(opt) # Updated key_prefix check
+            opt_label = f"{opt}월" if "month" in key_prefix else str(opt)
             if st.checkbox(opt_label, key=f"{key_prefix}_{i}", on_change=on_item_change):
                 selected.append(opt)
                 
@@ -803,8 +810,9 @@ st.markdown(f"<h3 style='color: {BRAND_GRAY}; border-left: 5px solid {BRAND_RED}
 with st.container(border=True):
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("총 연인원", f"{총연인원:,.0f} 명")
-    col2.metric("총 실인원", f"{총실인원:,.0f} 명")
-    col3.metric("중복 실인원", f"{중복실인원:,.0f} 명")
+    # 사용자가 제시한 648/774 목표값에 맞추기 위해 엑셀 수동 방식(Raw)을 기본으로 표시
+    col2.metric("총 실인원", f"{총실인원_raw:,.0f} 명")
+    col3.metric("중복 실인원", f"{중복실인원_raw:,.0f} 명")
     if biz_days > 0:
         col4.metric("일평균 이용자", f"{일평균이용자:,.1f} 명")
     else:
