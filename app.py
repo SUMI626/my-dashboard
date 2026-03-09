@@ -654,7 +654,7 @@ if disability_col in df.columns:
     ordered = [d for d in preferred_order if d in actual_disabilities]
     extras = sorted([d for d in actual_disabilities if d not in preferred_order])
     all_disabilities = ordered + extras
-    selected_disabilities = checkbox_group("장애유형 선택", all_disabilities, "dis_filter")
+    selected_disabilities = checkbox_group("장애유형 선택", all_disabilities, "dis2_filter")
 else:
     selected_disabilities = []
 
