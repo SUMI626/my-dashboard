@@ -139,37 +139,30 @@ def clean_and_map_data(df):
     col_disability_type = find_col(['장애유형', '장애종류']) or '장애유형'
     
     # 2. 고유 식별자 생성 (이름 + 생년월일 + 장애유형 + 장애정도)
-    # ★핵심 문제: GSheets에서 같은 사람의 생년월일이 행마다 다른 형식으로 반환됨
-    # 예시: 어떤 행은 "971012-1" (텍스트), 다른 행은 "1997-10-12" (날짜 형식) → 다른 ID 생성 → 같은 사람이지만 다른 사람으로 집계
-    # ★해결: 날짜를 YYMMDD 6자리로 통일
+    # [Checkpoint 1] GSheets 데이터 타입 정규화:
+    # 생년월일은 pd.to_datetime() 사용 시 모호한 파싱이 실제로 벌어짘 수 있음.
+    # 예: '971012-1' -> pd.to_datetime -> '1971-01-02' -> '%y%m%d' = '710102' (오분석)
+    # 넷 안전한 방법: 숫자만 추출하면 YYMMDD 형식 일관성 보장
     def normalize_birth_col(series):
-        s = series.fillna('').astype(str).str.strip()
-        
-        result = pd.Series([''] * len(s), index=s.index)
-        for idx, val in s.items():
-            if not val or val == 'nan':
-                result[idx] = ''
+        result = []
+        for val in series.fillna('').astype(str):
+            val = val.strip()
+            if not val or val in ('nan', 'None', ''):
+                result.append('')
                 continue
-            # 1차 시도: pd.to_datetime으로 파싱 (1997-10-12, 1997/10/12 등의 완전한 날짜 형식)
-            try:
-                parsed = pd.to_datetime(val, errors='raise')
-                result[idx] = parsed.strftime('%y%m%d')  # → '971012'
-                continue
-            except:
-                pass
-            # 2차 시도: 숫자만 추출
+            # 숫자만 추출
             digits = re.sub(r'[^0-9]', '', val)
-            if len(digits) >= 8:
-                # 19971012 → 앞 2자리가 19면 3번째부터 8자리 사용: 971012
-                if digits[:2] in ('19', '20'):
-                    result[idx] = digits[2:8]
-                else:
-                    result[idx] = digits[:6]
+            if len(digits) >= 8 and digits[:2] in ('19', '20'):
+                # YYYYMMDD 형식 (GSheets 날짜 셀)
+                # 19971012 -> 971012
+                result.append(digits[2:8])
             elif len(digits) >= 6:
-                result[idx] = digits[:6]
+                # YYMMDD 또는 YYMMDD-성별 형식
+                # 971012, 971012-1 -> 971012
+                result.append(digits[:6])
             else:
-                result[idx] = digits
-        return result
+                result.append(digits)  # 빈값 등 대비
+        return pd.Series(result, index=series.index)
 
     def normalize_text_col(series):
         return series.fillna('').astype(str).str.strip().str.replace(r'\s+', '', regex=True)
@@ -188,6 +181,11 @@ def clean_and_map_data(df):
         df['고유ID'] = id_parts[0] + "_" + id_parts[1] + "_" + id_parts[2] + "_" + id_parts[3]
     else:
         df['고유ID'] = df.index.astype(str)
+
+    # [Checkpoint 1] '실적' 콜럼을 모두 숫자형으로 강제 변환 (GSheets에서 문자열로 더와오는 경우 대비)
+    col_performance = find_col(['실적', '췄터', '수']) or '실적'
+    if col_performance in df.columns:
+        df[col_performance] = pd.to_numeric(df[col_performance], errors='coerce').fillna(0)
         
     # 3. 빈칸 채우기
     if col_basic in df.columns:
@@ -680,25 +678,31 @@ if name_col in df_person.columns:
 else:
     valid_unique_df = df_person.copy()
 
-# 2. 실인원: M열 '명' 데이터 중에서 이름, 생년월일, 장애유형, 장애정도 4가지의 데이터 중복값을 제거한 값
+# 2. 실인원: 이름, 생년월일, 장애유형, 장애정도로 중복 제거 (기타 제외)
+# [Checkpoint 2] NaN 처리: 고유ID가 빈값인 행은 제외
+valid_unique_df = valid_unique_df.loc[
+    valid_unique_df['고유ID'].notna() & 
+    (valid_unique_df['고유ID'].astype(str).str.strip() != '') &
+    (valid_unique_df['고유ID'].astype(str).str.strip() != 'nan')
+].copy()
+
 총실인원 = valid_unique_df['고유ID'].nunique()
 
 # 3. 중복실인원: 이름, 생년월일, 장애유형, 장애정도, 팀이름 5가지 조합으로 중복 제거
-# 실제 팀 콜럼명을 네이버 디버깅으로 집계 (valid_unique_df의 콜럼에 팀 정보가 있는지 확인)
-actual_team_col = None
-for c in valid_unique_df.columns:
-    if '팀' in str(c) or '부서' in str(c) or 'team' in str(c).lower():
-        actual_team_col = c
-        break
+# [Checkpoint 3] team_col = '팀이름'이 확인됨, 해당 콜럼으로 직접 집계
+actual_team_col = team_col  # 어떤 콜럼이 팀 콜럼인지 두 번 확인: col_map의 '팀'값이 파인된 실제 콜럼명
+if actual_team_col not in valid_unique_df.columns:
+    # fallback: 직접 탐색
+    for c in valid_unique_df.columns:
+        if '팀' in str(c) or '부서' in str(c) or 'team' in str(c).lower():
+            actual_team_col = c
+            break
 
-if actual_team_col:
+if actual_team_col in valid_unique_df.columns:
     중복실인원 = len(valid_unique_df[['고유ID', actual_team_col]].drop_duplicates())
-elif team_col in valid_unique_df.columns:
-    중복실인원 = len(valid_unique_df[['고유ID', team_col]].drop_duplicates())
 else:
     중복실인원 = 총실인원
-    # 디버깅: 팀 콜럼을 찾지 못했으면 화면에 임시로 안내
-    actual_team_col = f"[DEBUG] team_col='{team_col}' 빨나 | 상단 20열: {list(valid_unique_df.columns[:20])}"
+    actual_team_col = f"[ERROR] '팀' 콜럼을 찾을 수 없음. valid_unique_df 콜럼: {list(valid_unique_df.columns)}"
 
 # 4. 일평균 이용자: 연인원 / 운영 일수 (주말 및 법정공휴일 제외)
 def get_biz_days(parsed_dates):
@@ -745,12 +749,36 @@ with st.container(border=True):
     else:
         col4.metric("일평균 이용자", "-")
 
-# 디버그 정보 (팀 컬럼명 확인용 - 이슈 해결 후 삭제)
-with st.expander("🔍 [개발자 정보] 컬럼명 확인", expanded=False):
-    st.write(f"**team_col (col_map 기준):** `{team_col}`")
-    st.write(f"**actual_team_col (직접 탐색):** `{actual_team_col}`")
-    st.write(f"**valid_unique_df 컬럼 목록:** `{list(valid_unique_df.columns)}`")
-    st.write(f"**중복실인원 계산값:** {중복실인원} | **총실인원:** {총실인원}")
+# 디버그 정보 (중복실인원 진단용 - 이슈 해결 후 삭제)
+with st.expander("🔍 [개발자 정보] 중복실인원 진단", expanded=False):
+    st.write(f"**① valid_unique_df 총 행수(중복 포함):** `{len(valid_unique_df)}행` (이 값이 실인원 {총실인원}보다 훨씬 커야 정상)")
+    st.write(f"**② 실인원 (고유ID 종류):** `{총실인원}명`")
+    st.write(f"**③ 중복실인원 (고유ID+팀이름 조합):** `{중복실인원}명` (②보다 커야 정상)")
+    st.write(f"**④ actual_team_col:** `{actual_team_col}` | **team_col:** `{team_col}`")
+
+    # 팀이름 분포 확인
+    if actual_team_col and actual_team_col in valid_unique_df.columns:
+        team_dist = valid_unique_df[actual_team_col].value_counts()
+        st.write(f"**⑤ 팀이름 분포 (행 기준):**")
+        st.dataframe(team_dist.reset_index().rename(columns={actual_team_col: '팀이름', 'count': '행수'}), height=200)
+    
+    # 여러 팀에 걸쳐 나온 이용자 확인
+    if actual_team_col and actual_team_col in valid_unique_df.columns:
+        multi_team = valid_unique_df.groupby('고유ID')[actual_team_col].nunique()
+        multi_team_users = multi_team[multi_team > 1]
+        st.write(f"**⑥ 여러 팀을 이용한 이용자 수:** `{len(multi_team_users)}명` (이 숫자가 0이면 데이터상 중복없음)")
+        if not multi_team_users.empty:
+            st.write("샘플 (고유ID, 팀 수):")
+            st.dataframe(multi_team_users.head(5))
+
+    # 이준승 샘플 조회
+    name_col_check = col_map.get('이름', '이름')
+    if name_col_check in valid_unique_df.columns:
+        sample = valid_unique_df[valid_unique_df[name_col_check].astype(str).str.contains('이준승', na=False)]
+        if not sample.empty:
+            show_cols = ['고유ID', name_col_check, actual_team_col] if actual_team_col else ['고유ID', name_col_check]
+            st.write("**⑦ 이준승 데이터 샘플:**")
+            st.dataframe(sample[show_cols].head(10))
 
 # ================= 연인원 전용 차트 함수 =================
 
