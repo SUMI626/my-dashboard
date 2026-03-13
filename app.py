@@ -115,6 +115,43 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
 div[data-testid="stVerticalBlockBorderWrapper"] {{
     padding: 0px !important;
 }}
+
+/* ========= 프리젠테이션 모드 스타일 ========= */
+body.pres-active [data-testid="stSidebar"],
+body.pres-active [data-testid="stSidebarCollapsedControl"] {{
+    display: none !important;
+}}
+body.pres-active [data-testid="stHeader"] {{
+    display: none !important;
+}}
+/* 데이터소스 설정 컨테이너 숨김 */
+body.pres-active .pres-hide {{
+    display: none !important;
+}}
+/* 메인 콘텐츠를 전체 너비로 */
+body.pres-active [data-testid="stMainBlockContainer"] {{
+    max-width: 100% !important;
+    padding: 0 1rem !important;
+}}
+/* 슬라이드 제목 스타일 */
+.pres-slide-title {{
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(0,0,0,0.35);
+    display: inline-block;
+    padding: 4px 16px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}}
+/* Fade 애니메이션 */
+@keyframes pressFadeIn {{
+    from {{ opacity: 0; transform: translateY(8px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+}}
+.pres-slide-content {{
+    animation: pressFadeIn 0.5s ease;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -645,6 +682,31 @@ if isinstance(col_map, str) or df.empty:
     st.info("💡 엑셀 파일의 컬럼명이나 구글 시트의 탭 이름('취합_자동') 및 공유 권한을 확인해 주세요.")
     st.stop()
 
+# ================= 프리젠테이션 모드 제어 (사이드바) =================
+if "presentation_mode" not in st.session_state:
+    st.session_state["presentation_mode"] = False
+if "pres_slide_idx" not in st.session_state:
+    st.session_state["pres_slide_idx"] = 0
+
+with st.sidebar.expander("🎬 프리젠테이션 모드", expanded=False):
+    pres_on = st.toggle(
+        "프리젠테이션 시작/종료",
+        value=st.session_state["presentation_mode"],
+        key="pres_toggle"
+    )
+    if pres_on != st.session_state["presentation_mode"]:
+        st.session_state["presentation_mode"] = pres_on
+        st.session_state["pres_slide_idx"] = 0
+        st.rerun()
+
+    pres_interval = st.selectbox(
+        "슬라이드 전환 간격",
+        options=[5, 10],
+        format_func=lambda x: f"{x}초",
+        index=0,
+        key="pres_interval"
+    )
+
 # ================= 필터 사이드바 =================
 st.sidebar.header("🔍 필터 설정")
 
@@ -862,16 +924,19 @@ else:
 
 일평균이용자 = 총연인원 / biz_days if biz_days > 0 else 0
 
-st.markdown(f"<h3 style='color: {BRAND_GRAY}; border-left: 5px solid {BRAND_RED}; padding-left: 10px; margin-bottom: 20px;'>📈 주요 실적 요약</h3>", unsafe_allow_html=True)
-with st.container(border=True):
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("총 연인원", f"{총연인원:,.0f} 명")
-    col2.metric("총 실인원", f"{총실인원:,.0f} 명")
-    col3.metric("중복 실인원", f"{중복실인원:,.0f} 명")
-    if biz_days > 0:
-        col4.metric("일평균 이용자", f"{일평균이용자:,.1f} 명")
-    else:
-        col4.metric("일평균 이용자", "-")
+# ================= 일반 대시보드 UI (프리젠테이션 모드 OFF시에만 표시) =================
+if not st.session_state.get("presentation_mode", False):
+    st.markdown(f"<h3 style='color: {BRAND_GRAY}; border-left: 5px solid {BRAND_RED}; padding-left: 10px; margin-bottom: 20px;'>📈 주요 실적 요약</h3>", unsafe_allow_html=True)
+    with st.container(border=True):
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("총 연인원", f"{총연인원:,.0f} 명")
+        col2.metric("총 실인원", f"{총실인원:,.0f} 명")
+        col3.metric("중복 실인원", f"{중복실인원:,.0f} 명")
+        if biz_days > 0:
+            col4.metric("일평균 이용자", f"{일평균이용자:,.1f} 명")
+        else:
+            col4.metric("일평균 이용자", "-")
+
 
 # ================= 연인원 전용 차트 함수 =================
 
@@ -1437,13 +1502,14 @@ def draw_cross_analysis(df_yeon, col_map):
         )
         st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
-# ================= 차트 영역: 두 개의 탭으로 구성 =================
-tab1, tab2 = st.tabs(["📊 연인원 현황", "👤 실인원 현황"])
-
-# 연인원 데이터 필터링 (명 단위 & 실적 합산용)
+# 연인원 데이터 필터링 (명 단위 & 실적 합산용) - 항상 정의 (프리젠테이션 모드에서도 사용)
 unit_col = col_map.get('단위', '명/건')
 is_person_all = filtered_df[unit_col].astype(str).str.strip() == '명'
 df_yeon = filtered_df[is_person_all].copy()
+
+# ================= 차트 영역: 두 개의 탭으로 구성 (프리젠테이션 모드 OFF 시에만 표시) =================
+if not st.session_state.get("presentation_mode", False):
+    tab1, tab2 = st.tabs(["📊 연인원 현황", "👤 실인원 현황"])
 
 # 5. 신규 이용자 현황 (접수상담 기준)
 def draw_new_user_analysis(df_data, col_map):
@@ -1527,62 +1593,204 @@ def draw_team_duplicated_sil(valid_unique_df, col_map):
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
 # ====== Tab 1: 연인원 현황 (Detailed Rebuild) ======
-with tab1:
-    # 1. 장애유형별 이용 현황
-    draw_disability_donut_yeon(df_yeon, col_map)
-    
-    # 2. 장애유형별 선호 프로그램 (가로 막대)
-    # '중식' 계열 사업은 선호 프로그램 통계에서 제외
-    _proj_col_for_filter = col_map.get('세부사업', '세부사업')
-    df_yeon_no_jungsik = df_yeon[~df_yeon[_proj_col_for_filter].astype(str).str.contains('중식', na=False)].copy()
-    draw_preferred_bar_disability(df_yeon_no_jungsik, col_map)
-    
-    # 3. 연령대별 현황 (나란히 배치)
-    col_age1, col_age2 = st.columns(2)
-    with col_age1:
-        draw_age_bar_custom(df_yeon, is_disabled=True)
-    with col_age2:
-        draw_age_bar_custom(df_yeon, is_disabled=False)
-    
-    # 4. 연령대별 선호 프로그램 (가로 막대)
-    draw_preferred_bar_age(df_yeon_no_jungsik, col_map)
-    
-    # 5. 신규 이용자 현황 (접수상담 기준)
-    draw_new_user_analysis(df_yeon, col_map)
-    
-    # 6. 장애유형 X 연인원 교차 분석 (NEW)
-    draw_cross_analysis(df_yeon, col_map)
-
-    # 6. 익명 참여자 분석
-    draw_etc_top10_yeon(df_yeon, col_map)
-    
-    # 6. 월별 추이 및 요일별 혼잡도 (나란히 배치)
-    col_trend, col_crowd = st.columns(2)
-    with col_trend:
-        draw_monthly_trend(df_yeon)
-    with col_crowd:
-        draw_daily_crowdedness(df_yeon)
-
-# ====== Tab 2: 실인원 현황 (Detailed Implementation) ======
-with tab2:
-    # 실인원용 데이터셋: '기타' 제외 및 [이름+생년월일+장애유형+장애정도] 기준 중복 제거
-    _sil_cols = _uniq_cols_4 if _uniq_cols_4 else None
-    df_sil = _df_for_uniq.drop_duplicates(subset=_sil_cols).copy() if _sil_cols else _df_for_uniq.copy()
-    
-    if not df_sil.empty:
-        # 1. 장애유형별 이용 현황 (실인원)
-        st.markdown(f"<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
-        draw_disability_donut_yeon(df_sil, col_map, title_label="실인원")
+    with tab1:
+        # 1. 장애유형별 이용 현황
+        draw_disability_donut_yeon(df_yeon, col_map)
         
-        # 2 & 3. 연령대별 현황 (실인원 - 나란히 배치)
+        # 2. 장애유형별 선호 프로그램 (가로 막대)
+        # '중식' 계열 사업은 선호 프로그램 통계에서 제외
+        _proj_col_for_filter = col_map.get('세부사업', '세부사업')
+        df_yeon_no_jungsik = df_yeon[~df_yeon[_proj_col_for_filter].astype(str).str.contains('중식', na=False)].copy()
+        draw_preferred_bar_disability(df_yeon_no_jungsik, col_map)
+        
+        # 3. 연령대별 현황 (나란히 배치)
         col_age1, col_age2 = st.columns(2)
         with col_age1:
-            draw_age_bar_custom(df_sil, is_disabled=True, title_label="실인원")
+            draw_age_bar_custom(df_yeon, is_disabled=True)
         with col_age2:
-            draw_age_bar_custom(df_sil, is_disabled=False, title_label="실인원")
+            draw_age_bar_custom(df_yeon, is_disabled=False)
+        
+        # 4. 연령대별 선호 프로그램 (가로 막대)
+        draw_preferred_bar_age(df_yeon_no_jungsik, col_map)
+        
+        # 5. 신규 이용자 현황 (접수상담 기준)
+        draw_new_user_analysis(df_yeon, col_map)
+        
+        # 6. 장애유형 X 연인원 교차 분석 (NEW)
+        draw_cross_analysis(df_yeon, col_map)
+    
+        # 6. 익명 참여자 분석
+        draw_etc_top10_yeon(df_yeon, col_map)
+        
+        # 6. 월별 추이 및 요일별 혼잡도 (나란히 배치)
+        col_trend, col_crowd = st.columns(2)
+        with col_trend:
+            draw_monthly_trend(df_yeon)
+        with col_crowd:
+            draw_daily_crowdedness(df_yeon)
+
+# ====== Tab 2: 실인원 현황 (Detailed Implementation) ======
+    with tab2:
+        # 실인원용 데이터셋: '기타' 제외 및 [이름+생년월일+장애유형+장애정도] 기준 중복 제거
+        _sil_cols = _uniq_cols_4 if _uniq_cols_4 else None
+        df_sil = _df_for_uniq.drop_duplicates(subset=_sil_cols).copy() if _sil_cols else _df_for_uniq.copy()
+        
+        if not df_sil.empty:
+            # 1. 장애유형별 이용 현황 (실인원)
+            st.markdown(f"<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
+            draw_disability_donut_yeon(df_sil, col_map, title_label="실인원")
             
-        # 4. 팀별 중복 실인원 현황 (NEW)
+            # 2 & 3. 연령대별 현황 (실인원 - 나란히 배치)
+            col_age1, col_age2 = st.columns(2)
+            with col_age1:
+                draw_age_bar_custom(df_sil, is_disabled=True, title_label="실인원")
+            with col_age2:
+                draw_age_bar_custom(df_sil, is_disabled=False, title_label="실인원")
+                
+            # 4. 팀별 중복 실인원 현황 (NEW)
+            draw_team_duplicated_sil(_df_for_uniq, col_map)
+                
+        else:
+            st.info("실인원 현황을 구성할 수 있는 데이터가 없습니다.")
+
+
+# ============================================================
+# ================= 프리젠테이션 모드 렌더링 =================
+# ============================================================
+if st.session_state.get("presentation_mode", False):
+    pres_interval_val = st.session_state.get("pres_interval", 5)
+
+    # 연인원용 데이터 준비 (이미 위에서 df_yeon 등이 정의돼 있음)
+    # 실인원용 데이터 준비
+    _sil_cols_p = _uniq_cols_4 if _uniq_cols_4 else None
+    df_sil_p = _df_for_uniq.drop_duplicates(subset=_sil_cols_p).copy() if _sil_cols_p else _df_for_uniq.copy()
+
+    # 슬라이드 정의: (제목, 렌더 함수)
+    def _slide_disability_yeon():
+        draw_disability_donut_yeon(df_yeon, col_map)
+
+    def _slide_age_disabled():
+        draw_age_bar_custom(df_yeon, is_disabled=True)
+
+    def _slide_age_nondisabled():
+        draw_age_bar_custom(df_yeon, is_disabled=False)
+
+    def _slide_monthly():
+        draw_monthly_trend(df_yeon)
+
+    def _slide_daily():
+        draw_daily_crowdedness(df_yeon)
+
+    def _slide_etc():
+        draw_etc_top10_yeon(df_yeon, col_map)
+
+    def _slide_new_user():
+        draw_new_user_analysis(df_yeon, col_map)
+
+    def _slide_disability_sil():
+        draw_disability_donut_yeon(df_sil_p, col_map, title_label="실인원")
+
+    def _slide_age_disabled_sil():
+        draw_age_bar_custom(df_sil_p, is_disabled=True, title_label="실인원")
+
+    def _slide_age_nondisabled_sil():
+        draw_age_bar_custom(df_sil_p, is_disabled=False, title_label="실인원")
+
+    def _slide_team_sil():
         draw_team_duplicated_sil(_df_for_uniq, col_map)
-            
-    else:
-        st.info("실인원 현황을 구성할 수 있는 데이터가 없습니다.")
+
+    SLIDES = [
+        ("장애유형별 이용 현황 (연인원)",         _slide_disability_yeon),
+        ("연령대별 현황 – 장애/미등록 (연인원)",   _slide_age_disabled),
+        ("연령대별 현황 – 비장애 (연인원)",        _slide_age_nondisabled),
+        ("월별 이용자 추이",                       _slide_monthly),
+        ("요일별 혼잡도",                          _slide_daily),
+        ("익명 참여자 분석 (기타)",                 _slide_etc),
+        ("신규 이용자 현황",                        _slide_new_user),
+        ("장애유형별 이용 현황 (실인원)",            _slide_disability_sil),
+        ("연령대별 현황 – 장애/미등록 (실인원)",    _slide_age_disabled_sil),
+        ("연령대별 현황 – 비장애 (실인원)",         _slide_age_nondisabled_sil),
+        ("팀별 중복 실인원 현황",                   _slide_team_sil),
+    ]
+    TOTAL_SLIDES = len(SLIDES)
+
+    # 현재 슬라이드 인덱스
+    idx = st.session_state.get("pres_slide_idx", 0) % TOTAL_SLIDES
+    slide_title, slide_fn = SLIDES[idx]
+
+    # --- 상단 고정 헤더 영역 ---
+    st.markdown(
+        """
+        <div style='
+            background: linear-gradient(135deg, #BE1E2D 0%, #136698 100%);
+            padding: 18px 32px 10px 32px;
+            margin-bottom: 10px;
+            border-radius: 0 0 12px 12px;
+        '>
+            <div style='
+                font-size: 36px;
+                font-weight: 900;
+                color: #FFD700;
+                text-align: center;
+                letter-spacing: 2px;
+                text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            '>서부장애인종합복지관 이용 분석 현황</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 슬라이드 제목 (왼쪽 정렬)
+    st.markdown(
+        f"<div class='pres-slide-title'>📌 {slide_title}</div>",
+        unsafe_allow_html=True
+    )
+
+    # 슬라이드 콘텐츠 (Fade 애니메이션)
+    with st.container():
+        st.markdown("<div class='pres-slide-content'>", unsafe_allow_html=True)
+        slide_fn()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # 슬라이드 번호 표시 + 수동 이동 버튼
+    col_prev, col_info, col_next = st.columns([1, 3, 1])
+    with col_prev:
+        if st.button("◀ 이전", key="pres_prev", use_container_width=True):
+            st.session_state["pres_slide_idx"] = (idx - 1) % TOTAL_SLIDES
+            st.rerun()
+    with col_info:
+        st.markdown(
+            f"<div style='text-align:center; color:#666; font-size:15px; padding-top:6px;'>"
+            f"{idx+1} / {TOTAL_SLIDES}&nbsp;&nbsp;|&nbsp;&nbsp;{pres_interval_val}초 자동 전환</div>",
+            unsafe_allow_html=True
+        )
+    with col_next:
+        if st.button("다음 ▶", key="pres_next", use_container_width=True):
+            st.session_state["pres_slide_idx"] = (idx + 1) % TOTAL_SLIDES
+            st.rerun()
+
+    # JS: body에 pres-active 클래스 추가 + 자동 진행 타이머
+    st.markdown(
+        f"""
+        <script>
+        (function() {{
+            // body 클래스 추가 (CSS 숨김 트리거)
+            document.body.classList.add('pres-active');
+
+            // 자동 전환 타이머
+            var _timer = setTimeout(function() {{
+                // Streamlit 재실행 트리거: '다음 ▶' 버튼을 클릭
+                var btns = Array.from(document.querySelectorAll('button'));
+                var nextBtn = btns.find(b => b.textContent.includes('다음'));
+                if (nextBtn) nextBtn.click();
+            }}, {pres_interval_val * 1000});
+
+            // 페이지 언로드 시 타이머 제거
+            window.addEventListener('beforeunload', function() {{
+                clearTimeout(_timer);
+            }});
+        }})();
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
