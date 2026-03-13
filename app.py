@@ -629,7 +629,7 @@ with st.container(border=True):
                 st.info("ℹ️ 업로드된 파일이 없어 '2025실적데이터.xlsx'를 기본으로 사용합니다.")
 
 with st.spinner("데이터를 불러오고 처리하는 중입니다..."):
-    if source_option == "로컬 엑셀 파일":
+    if source_option == "엑셀(2025최종/업로드)":
         df, col_map = load_data_excel(data_source)
     else:
         # URL 형식 검증
