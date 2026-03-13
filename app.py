@@ -1754,12 +1754,27 @@ if st.session_state.get("presentation_mode", False):
     /* 사이드바 완전 숨김 */
     [data-testid="stSidebar"],
     [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-    /* 상단 Streamlit 헤더 메뉴 숨김 */
-    [data-testid="stHeader"] { display: none !important; }
+    /* 상단 Streamlit 헤더 및 툴바 전체 숨김 */
+    [data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"],
+    .stAppDeployButton,
+    header { display: none !important; }
+    /* 하단 푸터 숨김 */
+    footer,
+    [data-testid="stBottom"],
+    [data-testid="stBottomBlockContainer"] { display: none !important; }
+    /* 상단 여백 제거 */
+    [data-testid="stAppViewBlockContainer"],
+    [data-testid="stMainBlockContainer"] {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
     /* 메인 컨테이너 전체 너비 사용 */
     [data-testid="stMainBlockContainer"] {
         max-width: 100% !important;
-        padding: 0 1.5rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
     }
     /* 데이터소스 설정 등 일반 블록도 숨김 */
     .pres-hide { display: none !important; }
