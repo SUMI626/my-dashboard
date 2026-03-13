@@ -702,20 +702,19 @@ div[data-testid="stSelectbox"] {
 </style>
 """, unsafe_allow_html=True)
 
-_title_col, _btn_col, _interval_col = st.columns([7.7, 1.5, 0.8], vertical_alignment="center")
+_is_pres = st.session_state.get("presentation_mode", False)
 
-with _title_col:
-    st.markdown("<div class='main-title-container'><h1>📊 이용자 현황 분석 대시보드</h1></div>", unsafe_allow_html=True)
-
-with _btn_col:
-    _btn_label = "❌ 프리젠테이션 종료" if st.session_state.get("presentation_mode", False) else "🎥 프리젠테이션 보기"
-    if st.button(_btn_label, key="pres_main_btn", use_container_width=True, type="primary"):
-        st.session_state["presentation_mode"] = not st.session_state.get("presentation_mode", False)
-        st.session_state["pres_slide_idx"] = 0
-        st.rerun()
-
-with _interval_col:
-    if not st.session_state.get("presentation_mode", False):
+if not _is_pres:
+    # 일반 모드: 제목 | 프리젠테이션 보기 버튼 | 시간 드롭다운 나란히 배치
+    _title_col, _btn_col, _interval_col = st.columns([7.7, 1.5, 0.8], vertical_alignment="center")
+    with _title_col:
+        st.markdown("<div class='main-title-container'><h1>📊 이용자 현황 분석 대시보드</h1></div>", unsafe_allow_html=True)
+    with _btn_col:
+        if st.button("🎥 프리젠테이션 보기", key="pres_main_btn", use_container_width=True, type="primary"):
+            st.session_state["presentation_mode"] = True
+            st.session_state["pres_slide_idx"] = 0
+            st.rerun()
+    with _interval_col:
         st.session_state["pres_interval"] = st.selectbox(
             "간격",
             options=[5, 10],
@@ -724,6 +723,13 @@ with _interval_col:
             key="pres_interval_select",
             label_visibility="collapsed"
         )
+else:
+    # 프리젠테이션 모드: 종료 버튼만 오른쪽 상단에 표시
+    _exit_col = st.columns([8.5, 1.5])[1]
+    with _exit_col:
+        if st.button("❌ 종료", key="pres_exit_btn", use_container_width=True, type="primary"):
+            st.session_state["presentation_mode"] = False
+            st.rerun()
 
 
 # ================= 데이터 소스 설정 (메인 화면) =================
@@ -1735,6 +1741,25 @@ if not st.session_state.get("presentation_mode", False):
 # ================= 프리젠테이션 모드 렌더링 =================
 # ============================================================
 if st.session_state.get("presentation_mode", False):
+    # 프리젠테이션 전체화면: 사이드바·헤더·상단 블록 모두 숨김
+    st.markdown("""
+    <style>
+    /* 사이드바 완전 숨김 */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+    /* 상단 Streamlit 헤더 메뉴 숨김 */
+    [data-testid="stHeader"] { display: none !important; }
+    /* 상단 타이틀+버튼+드롭다운 행 숨김 */
+    [data-testid="stMainBlockContainer"] > div:first-child { display: none !important; }
+    /* 메인 컨테이너 전체 너비 사용 */
+    [data-testid="stMainBlockContainer"] {
+        max-width: 100% !important;
+        padding: 0 1.5rem !important;
+    }
+    /* 데이터소스 설정 등 일반 블록도 숨김 */
+    .pres-hide { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
     pres_interval_val = st.session_state.get("pres_interval", 5)
 
     # 연인원용 데이터 준비 (이미 위에서 df_yeon 등이 정의돼 있음)
@@ -1795,23 +1820,20 @@ if st.session_state.get("presentation_mode", False):
     idx = st.session_state.get("pres_slide_idx", 0) % TOTAL_SLIDES
     slide_title, slide_fn = SLIDES[idx]
 
-    # --- 상단 고정 헤더 영역 ---
+    # --- 상단 고정 헤더 영역 (배경 없이 브랜드 컬러 텍스트만) ---
     st.markdown(
         """
         <div style='
-            background: linear-gradient(135deg, #BE1E2D 0%, #136698 100%);
-            padding: 18px 32px 10px 32px;
-            margin-bottom: 10px;
-            border-radius: 0 0 12px 12px;
+            padding: 20px 32px 8px 32px;
+            margin-bottom: 4px;
+            text-align: center;
         '>
-            <div style='
+            <span style='
                 font-size: 36px;
                 font-weight: 900;
-                color: #FFD700;
-                text-align: center;
+                color: #BE1E2D;
                 letter-spacing: 2px;
-                text-shadow: 0 2px 8px rgba(0,0,0,0.4);
-            '>서부장애인종합복지관 이용 분석 현황</div>
+            '>서부장애인종합복지관 이용 분석 현황</span>
         </div>
         """,
         unsafe_allow_html=True
