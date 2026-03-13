@@ -476,44 +476,34 @@ def clean_and_map_data(df):
 
 def apply_chart_style(fig):
     """범례 크기 조정 및 모든 텍스트 색상 강제 지정. 프리젠테이션 모드에서는 폰트/높이를 키움."""
-    # 전역 프리젠테이션 모드 플래그 감지
     _pres = st.session_state.get("presentation_mode", False)
-    _font_size   = 22 if _pres else 13   # 전체 기본폰트 (범례 숫자 등)
-    _legend_size = 20 if _pres else 13   # 범례 텍스트
-    _tick_size   = 22 if _pres else 12   # X/Y 축 눈금(tick) 레이블 — 제목 크기와 동일
-    _title_size  = 22 if _pres else 15   # X/Y 축 제목(label) — 제목 크기와 동일
-    _height      = 500 if _pres else None  # 프리젠테이션: 500px 고정으로 잘림 방지
-    _margin      = dict(t=30, b=30, l=40, r=40) if _pres else dict(t=10, b=50, l=50, r=50)
+    _font_size   = 22 if _pres else 13
+    _legend_size = 20 if _pres else 13
+    _tick_size   = 22 if _pres else 12
+    _title_size  = 22 if _pres else 15
+    _height      = 500 if _pres else None
+    _margin      = dict(t=30, b=30, l=60, r=40) if _pres else dict(t=10, b=50, l=50, r=50)
+
+    axis_style = dict(
+        tickfont=dict(color="#31333F", size=_tick_size),
+        title_font=dict(color="#31333F", size=_title_size),
+        automargin=True,
+    )
 
     layout_kwargs = dict(
-        legend=dict(
-            itemsizing='constant',
-            font=dict(size=_legend_size, color="#31333F")
-        ),
+        legend=dict(itemsizing='constant', font=dict(size=_legend_size, color="#31333F")),
         margin=_margin,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color="#31333F", size=_font_size),
+        xaxis=axis_style,
+        yaxis=axis_style,
     )
     if _height is not None:
         layout_kwargs["height"] = _height
+
     fig.update_layout(**layout_kwargs)
-
-    try:
-        fig.update_xaxes(
-            automargin=True,
-            tickfont=dict(color="#31333F", size=_tick_size),
-            titlefont=dict(color="#31333F", size=_title_size)
-        )
-        fig.update_yaxes(
-            automargin=True,
-            tickfont=dict(color="#31333F", size=_tick_size),
-            titlefont=dict(color="#31333F", size=_title_size)
-        )
-    except:
-        pass
     return fig
-
 
 # 1. 월별 이용자 추이 (선 그래프 + 전월대비 %)
 def draw_monthly_trend(df_data):
