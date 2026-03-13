@@ -1043,7 +1043,7 @@ def draw_etc_top10_yeon(df_yeon, col_map):
         
         if not etc_stats.empty:
             # --- 시각화 전용 로직: 영역 비중 조절 (중식제공 50% 고정) ---
-            others_mask = ~etc_stats[project_col].astype(str).str.contains('중식제공', na=False)
+            others_mask = ~etc_stats[project_col].astype(str).str.contains('중식', na=False)
             others_sum = etc_stats.loc[others_mask, '실적'].sum()
             
             etc_stats['visual_weight'] = etc_stats['실적'].copy()
@@ -1120,7 +1120,7 @@ def draw_preferred_bar_disability(df_yeon, col_map):
 
             # 3. 데이터 필터링 및 전처리
             df_filtered = df_yeon[df_yeon[group_col].isin(actual_selection)].copy()
-            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식제공', na=False)]
+            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
             
             stats = df_filtered.groupby([group_col, project_col])[perf_col].sum().reset_index()
             
@@ -1226,7 +1226,7 @@ def draw_preferred_bar_age(df_yeon, col_map):
 
             # 3. 데이터 필터링 및 전처리
             df_filtered = df_yeon[df_yeon[group_col].isin(actual_selection)].copy()
-            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식제공', na=False)]
+            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
             
             stats = df_filtered.groupby([group_col, project_col])[perf_col].sum().reset_index()
             
@@ -1532,7 +1532,10 @@ with tab1:
     draw_disability_donut_yeon(df_yeon, col_map)
     
     # 2. 장애유형별 선호 프로그램 (가로 막대)
-    draw_preferred_bar_disability(df_yeon, col_map)
+    # '중식' 계열 사업은 선호 프로그램 통계에서 제외
+    _proj_col_for_filter = col_map.get('세부사업', '세부사업')
+    df_yeon_no_jungsik = df_yeon[~df_yeon[_proj_col_for_filter].astype(str).str.contains('중식', na=False)].copy()
+    draw_preferred_bar_disability(df_yeon_no_jungsik, col_map)
     
     # 3. 연령대별 현황 (나란히 배치)
     col_age1, col_age2 = st.columns(2)
@@ -1542,7 +1545,7 @@ with tab1:
         draw_age_bar_custom(df_yeon, is_disabled=False)
     
     # 4. 연령대별 선호 프로그램 (가로 막대)
-    draw_preferred_bar_age(df_yeon, col_map)
+    draw_preferred_bar_age(df_yeon_no_jungsik, col_map)
     
     # 5. 신규 이용자 현황 (접수상담 기준)
     draw_new_user_analysis(df_yeon, col_map)
