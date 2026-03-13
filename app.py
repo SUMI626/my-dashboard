@@ -671,11 +671,20 @@ button[data-testid="baseButton-primary"] {
     font-size: 16px !important;
     font-weight: 700 !important;
 }
+/* 버튼 안의 텍스트(ex. p태그 등) 색상도 무조건 흰색으로 강제 */
+button[kind="primary"] *,
+button[data-testid="baseButton-primary"] * {
+    color: #FFFFFF !important;
+}
 button[kind="primary"]:hover,
 button[data-testid="baseButton-primary"]:hover {
     background-color: #9a1825 !important;
     background: #9a1825 !important;
     border-color: #9a1825 !important;
+    color: #FFFFFF !important;
+}
+button[kind="primary"]:hover *,
+button[data-testid="baseButton-primary"]:hover * {
     color: #FFFFFF !important;
 }
 /* 3. 드롭다운 박스 하단 여백 맞춤 */
@@ -685,7 +694,7 @@ div[data-testid="stSelectbox"] {
 </style>
 """, unsafe_allow_html=True)
 
-_title_col, _btn_col, _interval_col = st.columns([7.5, 1.5, 1], vertical_alignment="center")
+_title_col, _btn_col, _interval_col = st.columns([8.0, 1.5, 0.5], vertical_alignment="center")
 
 with _title_col:
     st.markdown("<div class='main-title-container'><h1>📊 이용자 현황 분석 대시보드</h1></div>", unsafe_allow_html=True)
