@@ -152,6 +152,22 @@ body.pres-active [data-testid="stMainBlockContainer"] {{
 .pres-slide-content {{
     animation: pressFadeIn 0.5s ease;
 }}
+/* ========= 프리젠테이션 보기 버튼 스타일 ========= */
+/* key="pres_main_btn" 버튼이 포함된 컬럼 내 버튼 전용 */
+.pres-main-btn-container button {{
+    background-color: {BRAND_RED} !important;
+    color: white !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: none !important;
+    width: 100% !important;
+    transition: background 0.2s ease !important;
+    margin-top: 12px !important;
+}}
+.pres-main-btn-container button:hover {{
+    background-color: #9a1825 !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -632,7 +648,29 @@ def draw_age_charts(df_data, title_suffix):
                 else:
                     st.write(f"{label} 연령대 데이터 없음")
 
-st.title("📊 이용자 현황 분석 대시보드")
+# 타이틀 + 프리젠테이션 보기 버튼 (데이터 소스 설정 박스 위, 3:1 레이아웃)
+_title_col, _btn_col = st.columns([3, 1])
+with _title_col:
+    st.title("📊 이용자 현황 분석 대시보드")
+with _btn_col:
+    st.markdown("<div class='pres-main-btn-container'>", unsafe_allow_html=True)
+    _btn_label = "❌ 프리젠테이션 종료" if st.session_state.get("presentation_mode", False) else "🎥 프리젠테이션 보기"
+    if st.button(_btn_label, key="pres_main_btn", use_container_width=True):
+        st.session_state["presentation_mode"] = not st.session_state.get("presentation_mode", False)
+        st.session_state["pres_slide_idx"] = 0
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+    # 프리젠테이션 OFF 시에만 간격 선택 드롭다운 표시
+    if not st.session_state.get("presentation_mode", False):
+        st.session_state["pres_interval"] = st.selectbox(
+            "전환 간격",
+            options=[5, 10],
+            format_func=lambda x: f"{x}초",
+            index=0 if st.session_state.get("pres_interval", 5) == 5 else 1,
+            key="pres_interval_select",
+            label_visibility="collapsed"
+        )
+
 
 # ================= 데이터 소스 설정 (메인 화면) =================
 # 여기에 사용할 구글 스프레드시트 주소를 고정으로 입력하세요.
@@ -682,30 +720,14 @@ if isinstance(col_map, str) or df.empty:
     st.info("💡 엑셀 파일의 컬럼명이나 구글 시트의 탭 이름('취합_자동') 및 공유 권한을 확인해 주세요.")
     st.stop()
 
-# ================= 프리젠테이션 모드 제어 (사이드바) =================
+# ================= 프리젠테이션 모드 세션 상태 초기화 =================
 if "presentation_mode" not in st.session_state:
     st.session_state["presentation_mode"] = False
 if "pres_slide_idx" not in st.session_state:
     st.session_state["pres_slide_idx"] = 0
+if "pres_interval" not in st.session_state:
+    st.session_state["pres_interval"] = 5
 
-with st.sidebar.expander("🎬 프리젠테이션 모드", expanded=False):
-    pres_on = st.toggle(
-        "프리젠테이션 시작/종료",
-        value=st.session_state["presentation_mode"],
-        key="pres_toggle"
-    )
-    if pres_on != st.session_state["presentation_mode"]:
-        st.session_state["presentation_mode"] = pres_on
-        st.session_state["pres_slide_idx"] = 0
-        st.rerun()
-
-    pres_interval = st.selectbox(
-        "슬라이드 전환 간격",
-        options=[5, 10],
-        format_func=lambda x: f"{x}초",
-        index=0,
-        key="pres_interval"
-    )
 
 # ================= 필터 사이드바 =================
 st.sidebar.header("🔍 필터 설정")
