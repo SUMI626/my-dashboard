@@ -652,18 +652,51 @@ def draw_age_charts(df_data, title_suffix):
                 else:
                     st.write(f"{label} 연령대 데이터 없음")
 
-# 타이틀 | 프리젠테이션 보기 버튼 | 시간 드롭다운 (나란히 배치, 비율 7.5 : 1.5 : 1)
-_title_col, _btn_col, _interval_col = st.columns([7.5, 1.5, 1], vertical_alignment="bottom")
+# 타이틀 | 프리젠테이션 보기 버튼 | 시간 드롭다운 (나란히 배치 및 CSS 정렬)
+st.markdown("""
+<style>
+/* 1. 상단 타이틀 마진 제거해서 우측 버튼들과 높이 맞춤 */
+.main-title-container h1 {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    font-size: 2.2rem !important;
+}
+/* 2. Primary 버튼 색상 무조건 브랜드 레드 강제 (어느 버전에서든 먹히도록 여러 선택자 사용) */
+button[kind="primary"],
+button[data-testid="baseButton-primary"] {
+    background-color: #BE1E2D !important;
+    background: #BE1E2D !important;
+    border-color: #BE1E2D !important;
+    color: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+}
+button[kind="primary"]:hover,
+button[data-testid="baseButton-primary"]:hover {
+    background-color: #9a1825 !important;
+    background: #9a1825 !important;
+    border-color: #9a1825 !important;
+    color: #FFFFFF !important;
+}
+/* 3. 드롭다운 박스 하단 여백 맞춤 */
+div[data-testid="stSelectbox"] {
+    margin-top: -5px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+_title_col, _btn_col, _interval_col = st.columns([7.5, 1.5, 1], vertical_alignment="center")
+
 with _title_col:
-    st.title("📊 이용자 현황 분석 대시보드")
+    st.markdown("<div class='main-title-container'><h1>📊 이용자 현황 분석 대시보드</h1></div>", unsafe_allow_html=True)
+
 with _btn_col:
-    st.markdown("<div class='pres-main-btn-container'>", unsafe_allow_html=True)
     _btn_label = "❌ 프리젠테이션 종료" if st.session_state.get("presentation_mode", False) else "🎥 프리젠테이션 보기"
     if st.button(_btn_label, key="pres_main_btn", use_container_width=True, type="primary"):
         st.session_state["presentation_mode"] = not st.session_state.get("presentation_mode", False)
         st.session_state["pres_slide_idx"] = 0
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+
 with _interval_col:
     if not st.session_state.get("presentation_mode", False):
         st.session_state["pres_interval"] = st.selectbox(
