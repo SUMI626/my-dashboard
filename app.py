@@ -475,21 +475,40 @@ def clean_and_map_data(df):
 # ================= 차트 유틸리티 및 심층 분석 함수 =================
 
 def apply_chart_style(fig):
-    """범례 크기 조정 및 모든 텍스트 색상 강제 지정 (다크모드 대응)"""
-    fig.update_layout(
+    """범례 크기 조정 및 모든 텍스트 색상 강제 지정. 프리젠테이션 모드에서는 폰트/높이를 키움."""
+    # 전역 프리젠테이션 모드 플래그 감지
+    _pres = st.session_state.get("presentation_mode", False)
+    _font_size   = 18 if _pres else 13
+    _legend_size = 16 if _pres else 13
+    _tick_size   = 16 if _pres else 12
+    _height      = 640 if _pres else None  # None = Plotly 기본 자동 높이
+    _margin      = dict(t=30, b=30, l=40, r=40) if _pres else dict(t=10, b=50, l=50, r=50)
+
+    layout_kwargs = dict(
         legend=dict(
-            itemsizing='constant', 
-            font=dict(size=14, color="#31333F") # 범례 글자색 강제 지정
+            itemsizing='constant',
+            font=dict(size=_legend_size, color="#31333F")
         ),
-        margin=dict(t=10, b=50, l=50, r=50),
+        margin=_margin,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color="#31333F"), # 전체 폰트 색상 강제 지정
+        font=dict(color="#31333F", size=_font_size),
     )
-    # 축(Axis) 스타일은 별도로 적용하여 파이/도넛 차트에서의 오류 방지
+    if _height is not None:
+        layout_kwargs["height"] = _height
+    fig.update_layout(**layout_kwargs)
+
     try:
-        fig.update_xaxes(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F"))
-        fig.update_yaxes(automargin=True, tickfont=dict(color="#31333F"), titlefont=dict(color="#31333F"))
+        fig.update_xaxes(
+            automargin=True,
+            tickfont=dict(color="#31333F", size=_tick_size),
+            titlefont=dict(color="#31333F", size=_font_size)
+        )
+        fig.update_yaxes(
+            automargin=True,
+            tickfont=dict(color="#31333F", size=_tick_size),
+            titlefont=dict(color="#31333F", size=_font_size)
+        )
     except:
         pass
     return fig
@@ -1844,12 +1863,12 @@ if st.session_state.get("presentation_mode", False):
     st.markdown(
         """
         <div style='
-            padding: 20px 32px 8px 32px;
-            margin-bottom: 4px;
+            padding: 24px 32px 20px 32px;
+            margin-bottom: 12px;
             text-align: center;
         '>
             <span style='
-                font-size: 36px;
+                font-size: 52px;
                 font-weight: 900;
                 color: #BE1E2D;
                 letter-spacing: 2px;
