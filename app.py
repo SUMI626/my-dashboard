@@ -663,7 +663,8 @@ st.markdown("""
 }
 /* 2. Primary 버튼 색상 무조건 브랜드 레드 강제 (어느 버전에서든 먹히도록 여러 선택자 사용) */
 button[kind="primary"],
-button[data-testid="baseButton-primary"] {
+button[data-testid="baseButton-primary"],
+div.stButton button[kind="primary"] {
     background-color: #BE1E2D !important;
     background: #BE1E2D !important;
     border-color: #BE1E2D !important;
@@ -673,18 +674,25 @@ button[data-testid="baseButton-primary"] {
 }
 /* 버튼 안의 텍스트(ex. p태그 등) 색상도 무조건 흰색으로 강제 */
 button[kind="primary"] *,
-button[data-testid="baseButton-primary"] * {
+button[data-testid="baseButton-primary"] *,
+div.stButton button[kind="primary"] p,
+div.stButton button[data-testid="baseButton-primary"] p,
+div.stButton button[kind="primary"] div,
+div.stButton button[data-testid="baseButton-primary"] div {
     color: #FFFFFF !important;
 }
 button[kind="primary"]:hover,
-button[data-testid="baseButton-primary"]:hover {
+button[data-testid="baseButton-primary"]:hover,
+div.stButton button[kind="primary"]:hover {
     background-color: #9a1825 !important;
     background: #9a1825 !important;
     border-color: #9a1825 !important;
     color: #FFFFFF !important;
 }
 button[kind="primary"]:hover *,
-button[data-testid="baseButton-primary"]:hover * {
+button[data-testid="baseButton-primary"]:hover *,
+div.stButton button[kind="primary"]:hover p,
+div.stButton button[data-testid="baseButton-primary"]:hover p {
     color: #FFFFFF !important;
 }
 /* 3. 드롭다운 박스 하단 여백 맞춤 */
@@ -694,7 +702,7 @@ div[data-testid="stSelectbox"] {
 </style>
 """, unsafe_allow_html=True)
 
-_title_col, _btn_col, _interval_col = st.columns([8.0, 1.5, 0.5], vertical_alignment="center")
+_title_col, _btn_col, _interval_col = st.columns([7.7, 1.5, 0.8], vertical_alignment="center")
 
 with _title_col:
     st.markdown("<div class='main-title-container'><h1>📊 이용자 현황 분석 대시보드</h1></div>", unsafe_allow_html=True)
