@@ -737,31 +737,39 @@ else:
 DEFAULT_GSHEETS_URL = "https://docs.google.com/spreadsheets/d/1T8QB5fQaTLzEYlV5mgphGd-n8pMGHdJzq4OZo-HeJoI/edit"
 
 with st.container(border=True):
-    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 설정</div>", unsafe_allow_html=True)
-    source_col, input_col = st.columns([1, 2])
+    if not _is_pres:
+        st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 설정</div>", unsafe_allow_html=True)
+        source_col, input_col = st.columns([1, 2])
 
-    with source_col:
-        source_option = st.radio(
-            "분석할 데이터를 선택해 주세요:",
-            ["구글 스프레드시트(2026실시간)", "엑셀(2025최종/업로드)"],
-            index=0,
-            label_visibility="collapsed"
-        )
+        with source_col:
+            source_option = st.radio(
+                "분석할 데이터를 선택해 주세요:",
+                ["구글 스프레드시트(2026실시간)", "엑셀(2025최종/업로드)"],
+                index=0,
+                label_visibility="collapsed"
+            )
+            st.session_state["_pres_source_option"] = source_option
 
-    with input_col:
-        if source_option == "구글 스프레드시트(2026실시간)":
-            spreadsheet_url = DEFAULT_GSHEETS_URL if DEFAULT_GSHEETS_URL != "여기에_사용하실_구글스프레드시트_링크를_넣어주세요" else ""
-            data_source = spreadsheet_url
-            if not spreadsheet_url:
-                st.warning("⚠️ 코드 내 DEFAULT_GSHEETS_URL에 주소를 고정해두세요.")
-                st.stop()
-        else:
-            uploaded_file = st.file_uploader("📂 엑셀 파일 업로드 (.xlsx)", type=['xlsx'], label_visibility="collapsed")
-            if uploaded_file is not None:
-                data_source = uploaded_file
+        with input_col:
+            if source_option == "구글 스프레드시트(2026실시간)":
+                spreadsheet_url = DEFAULT_GSHEETS_URL if DEFAULT_GSHEETS_URL != "여기에_사용하실_구글스프레드시트_링크를_넣어주세요" else ""
+                data_source = spreadsheet_url
+                st.session_state["_pres_data_source"] = data_source
+                if not spreadsheet_url:
+                    st.warning("⚠️ 코드 내 DEFAULT_GSHEETS_URL에 주소를 고정해두세요.")
+                    st.stop()
             else:
-                data_source = "2025실적데이터.xlsx"
-                st.info("ℹ️ 업로드된 파일이 없어 '2025실적데이터.xlsx'를 기본으로 사용합니다.")
+                uploaded_file = st.file_uploader("📂 엑셀 파일 업로드 (.xlsx)", type=['xlsx'], label_visibility="collapsed")
+                if uploaded_file is not None:
+                    data_source = uploaded_file
+                else:
+                    data_source = "2025실적데이터.xlsx"
+                    st.info("ℹ️ 업로드된 파일이 없어 '2025실적데이터.xlsx'를 기본으로 사용합니다.")
+                st.session_state["_pres_data_source"] = data_source
+    else:
+        # 프리젠테이션 모드: 세션 상태에서 마지막 값 복원
+        source_option = st.session_state.get("_pres_source_option", "구글 스프레드시트(2026실시간)")
+        data_source = st.session_state.get("_pres_data_source", DEFAULT_GSHEETS_URL)
 
 with st.spinner("데이터를 불러오고 처리하는 중입니다..."):
     if source_option == "엑셀(2025최종/업로드)":
@@ -1749,8 +1757,6 @@ if st.session_state.get("presentation_mode", False):
     [data-testid="stSidebarCollapsedControl"] { display: none !important; }
     /* 상단 Streamlit 헤더 메뉴 숨김 */
     [data-testid="stHeader"] { display: none !important; }
-    /* 상단 타이틀+버튼+드롭다운 행 숨김 */
-    [data-testid="stMainBlockContainer"] > div:first-child { display: none !important; }
     /* 메인 컨테이너 전체 너비 사용 */
     [data-testid="stMainBlockContainer"] {
         max-width: 100% !important;
