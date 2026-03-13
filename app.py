@@ -153,9 +153,11 @@ body.pres-active [data-testid="stMainBlockContainer"] {{
     animation: pressFadeIn 0.5s ease;
 }}
 /* ========= 프리젠테이션 보기 버튼 스타일 ========= */
-/* key="pres_main_btn" 버튼이 포함된 컬럼 내 버튼 전용 */
-.pres-main-btn-container button {{
+/* type="primary" 버튼의 기본 테마 색상을 무조건 덮어쓰기 위해 상세 선택자 사용 */
+.pres-main-btn-container button,
+.pres-main-btn-container button[data-testid="baseButton-primary"] {{
     background-color: {BRAND_RED} !important;
+    background: {BRAND_RED} !important;
     color: white !important;
     font-size: 18px !important;
     font-weight: 700 !important;
@@ -165,8 +167,10 @@ body.pres-active [data-testid="stMainBlockContainer"] {{
     transition: background 0.2s ease !important;
     margin-top: 12px !important;
 }}
-.pres-main-btn-container button:hover {{
+.pres-main-btn-container button:hover,
+.pres-main-btn-container button[data-testid="baseButton-primary"]:hover {{
     background-color: #9a1825 !important;
+    background: #9a1825 !important;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -1614,7 +1618,8 @@ def draw_team_duplicated_sil(valid_unique_df, col_map):
             fig.update_layout(xaxis_title="수행팀", yaxis_title="실인원(명)")
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
-# ====== Tab 1: 연인원 현황 (Detailed Rebuild) ======
+if not st.session_state.get("presentation_mode", False):
+    # ====== Tab 1: 연인원 현황 (Detailed Rebuild) ======
     with tab1:
         # 1. 장애유형별 이용 현황
         draw_disability_donut_yeon(df_yeon, col_map)
@@ -1651,7 +1656,7 @@ def draw_team_duplicated_sil(valid_unique_df, col_map):
         with col_crowd:
             draw_daily_crowdedness(df_yeon)
 
-# ====== Tab 2: 실인원 현황 (Detailed Implementation) ======
+    # ====== Tab 2: 실인원 현황 (Detailed Implementation) ======
     with tab2:
         # 실인원용 데이터셋: '기타' 제외 및 [이름+생년월일+장애유형+장애정도] 기준 중복 제거
         _sil_cols = _uniq_cols_4 if _uniq_cols_4 else None
