@@ -648,22 +648,20 @@ def draw_age_charts(df_data, title_suffix):
                 else:
                     st.write(f"{label} 연령대 데이터 없음")
 
-# 타이틀 + 프리젠테이션 보기 버튼 (데이터 소스 설정 박스 위, 3:1 레이아웃)
-_title_col, _btn_col = st.columns([3, 1])
+# 타이틀 | 프리젠테이션 보기 버튼 | 시간 드롭다운 (나란히 배치, 비율 3:5:1)
+_title_col, _btn_col, _interval_col = st.columns([3, 5, 1])
 with _title_col:
     st.title("📊 이용자 현황 분석 대시보드")
 with _btn_col:
-    st.markdown("<div class='pres-main-btn-container'>", unsafe_allow_html=True)
     _btn_label = "❌ 프리젠테이션 종료" if st.session_state.get("presentation_mode", False) else "🎥 프리젠테이션 보기"
-    if st.button(_btn_label, key="pres_main_btn", use_container_width=True):
+    if st.button(_btn_label, key="pres_main_btn", use_container_width=True, type="primary"):
         st.session_state["presentation_mode"] = not st.session_state.get("presentation_mode", False)
         st.session_state["pres_slide_idx"] = 0
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-    # 프리젠테이션 OFF 시에만 간격 선택 드롭다운 표시
+with _interval_col:
     if not st.session_state.get("presentation_mode", False):
         st.session_state["pres_interval"] = st.selectbox(
-            "전환 간격",
+            "간격",
             options=[5, 10],
             format_func=lambda x: f"{x}초",
             index=0 if st.session_state.get("pres_interval", 5) == 5 else 1,
