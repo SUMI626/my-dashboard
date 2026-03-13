@@ -481,7 +481,7 @@ def apply_chart_style(fig):
     _font_size   = 18 if _pres else 13
     _legend_size = 16 if _pres else 13
     _tick_size   = 16 if _pres else 12
-    _height      = 640 if _pres else None  # None = Plotly 기본 자동 높이
+    _height      = 500 if _pres else None  # 프리젠테이션: 500px 고정으로 잘림 방지
     _margin      = dict(t=30, b=30, l=40, r=40) if _pres else dict(t=10, b=50, l=50, r=50)
 
     layout_kwargs = dict(
@@ -627,18 +627,21 @@ def draw_disability_donut(df_data, title_suffix):
                     chart_labels.append("")
             
             with st.container(border=True):
+                _pres = st.session_state.get("presentation_mode", False)
+                _label_size = 22 if _pres else 15
+                _legend_fsize = 16 if _pres else 14
                 fig = px.pie(dist_data, names='_LegendLabel', values='인원수', hole=0.45, 
                              title=f"<b>장애유형 분포 ({title_suffix})</b>",
                              color_discrete_sequence=COLOR_PALETTE)
                 fig.update_traces(
-                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=15,
+                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=_label_size,
                     hovertemplate="<b>%{label}</b><br>인원: %{value:,.0f}명<extra></extra>",
                     connector=dict(visible=False)
                 )
                 fig.update_layout(
                     showlegend=True,
-                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="right", x=1.1, font=dict(size=14)),
-                    height=550
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="right", x=1.1, font=dict(size=_legend_fsize)),
+                    height=500 if _pres else 550
                 )
                 st.plotly_chart(apply_chart_style(fig), use_container_width=True)
         else:
@@ -659,15 +662,17 @@ def draw_age_charts(df_data, title_suffix):
                     else:
                         age_data = sub_df.groupby('_연령대').size().reset_index(name='인원수')
                         
-                    if not age_data.empty:
-                        with st.container(border=True):
-                            fig = px.bar(age_data, x='_연령대', y='인원수', 
-                                           title=f"<b>{label} 연령대 ({title_suffix})</b>",
-                                           color_discrete_sequence=[color],
-                                           category_orders={"_연령대": ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상', '정보없음']},
-                                           text='인원수')
-                            fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside', textfont_size=16)
-                            st.plotly_chart(apply_chart_style(fig), use_container_width=True)
+                        if not age_data.empty:
+                            _pres = st.session_state.get("presentation_mode", False)
+                            _bar_txt_size = 22 if _pres else 16
+                            with st.container(border=True):
+                                fig = px.bar(age_data, x='_연령대', y='인원수', 
+                                               title=f"<b>{label} 연령대 ({title_suffix})</b>",
+                                               color_discrete_sequence=[color],
+                                               category_orders={"_연령대": ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상', '정보없음']},
+                                               text='인원수')
+                                fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside', textfont_size=_bar_txt_size)
+                                st.plotly_chart(apply_chart_style(fig), use_container_width=True)
                 else:
                     st.write(f"{label} 연령대 데이터 없음")
 
@@ -1907,28 +1912,28 @@ if st.session_state.get("presentation_mode", False):
             st.session_state["pres_slide_idx"] = (idx + 1) % TOTAL_SLIDES
             st.rerun()
 
-    # JS: 브라우저 전체화면 요청 + 자동 전환 타이머
+    # JS: 브라우저 전체화면 + 슬라이드 자동전환 + 키보드 방향키 지원
+    # ★ idx를 HTML에 포함시켜 슬라이드마다 iframe이 재실행되도록 강제
     import streamlit.components.v1 as components
     components.html(
         f"""
         <script>
+        /* slide_idx={idx} – 이 값이 바뀌면 Streamlit이 iframe을 재렌더링함 */
         (function() {{
-            // 브라우저 전체화면 요청 (Canva 프리젠테이션처럼)
             var doc = window.parent.document;
+
+            // 1) 브라우저 전체화면 요청
             var elem = doc.documentElement;
             try {{
-                if (elem.requestFullscreen) {{
-                    elem.requestFullscreen();
-                }} else if (elem.webkitRequestFullscreen) {{
-                    elem.webkitRequestFullscreen();
-                }} else if (elem.mozRequestFullScreen) {{
-                    elem.mozRequestFullScreen();
-                }} else if (elem.msRequestFullscreen) {{
-                    elem.msRequestFullscreen();
+                if (!doc.fullscreenElement) {{
+                    if (elem.requestFullscreen)        elem.requestFullscreen();
+                    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+                    else if (elem.mozRequestFullScreen)   elem.mozRequestFullScreen();
+                    else if (elem.msRequestFullscreen)    elem.msRequestFullscreen();
                 }}
             }} catch(e) {{}}
 
-            // 자동 전환 타이머
+            // 2) 자동 전환 타이머 (interval ms)
             var _timer = setTimeout(function() {{
                 var btns = doc.querySelectorAll('button');
                 for (var i = 0; i < btns.length; i++) {{
@@ -1939,8 +1944,27 @@ if st.session_state.get("presentation_mode", False):
                 }}
             }}, {pres_interval_val * 1000});
 
+            // 3) 키보드 방향키로 슬라이드 수동 전환
+            function _keyHandler(e) {{
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {{
+                    clearTimeout(_timer);
+                    var btns = doc.querySelectorAll('button');
+                    for (var i = 0; i < btns.length; i++) {{
+                        if (btns[i].textContent.trim().includes('다음')) {{ btns[i].click(); break; }}
+                    }}
+                }} else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {{
+                    clearTimeout(_timer);
+                    var btns = doc.querySelectorAll('button');
+                    for (var i = 0; i < btns.length; i++) {{
+                        if (btns[i].textContent.trim().includes('이전')) {{ btns[i].click(); break; }}
+                    }}
+                }}
+            }}
+            doc.addEventListener('keydown', _keyHandler);
+
             window.addEventListener('beforeunload', function() {{
                 clearTimeout(_timer);
+                doc.removeEventListener('keydown', _keyHandler);
             }});
         }})();
         </script>
