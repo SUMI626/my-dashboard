@@ -1,5 +1,6 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
+import gspread
+from google.oauth2.service_account import Credentials
 import pandas as pd
 import re
 import plotly.express as px
@@ -93,11 +94,19 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
     font-size: 18px;
 }}
 /* 탭 선택 색상 차별화 - 변수 대신 헥사코드 직접 사용 (f-string 오류 방지) */
-.stTabs [data-baseweb="tab"]:nth-child(1)[aria-selected="true"] {{
+/* 내부 p, span 태그에도 글자색을 강제 적용하여 전역 색상에 덮어씌워지는 현상 방지 */
+.stTabs [data-baseweb="tab"]:nth-child(1)[aria-selected="true"],
+.stTabs [data-baseweb="tab"]:nth-child(1)[aria-selected="true"] p,
+.stTabs [data-baseweb="tab"]:nth-child(1)[aria-selected="true"] span,
+.stTabs [data-baseweb="tab"]:nth-child(1)[aria-selected="true"] div {{
     background-color: #136698 !important;
     color: white !important;
 }}
-.stTabs [data-baseweb="tab"]:nth-child(2)[aria-selected="true"] {{
+
+.stTabs [data-baseweb="tab"]:nth-child(2)[aria-selected="true"],
+.stTabs [data-baseweb="tab"]:nth-child(2)[aria-selected="true"] p,
+.stTabs [data-baseweb="tab"]:nth-child(2)[aria-selected="true"] span,
+.stTabs [data-baseweb="tab"]:nth-child(2)[aria-selected="true"] div {{
     background-color: #BE1E2D !important;
     color: white !important;
 }}
@@ -117,19 +126,42 @@ def load_data_excel(file_path):
     except Exception as e:
         return pd.DataFrame(), str(e)
 
+@st.cache_data(ttl=600)
 def load_data_gsheets(spreadsheet_url):
+    """gspread를 직접 사용하여 구글 스프레드시트 데이터를 로드합니다."""
     try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        ws_name = "취합_자동"
+        # secrets.toml에서 서비스 계정 정보 읽기
+        # (streamlit-gsheets 전용 키인 'type'은 google oauth2가 인식 못 하므로 제거)
+        _raw = dict(st.secrets["connections"]["gsheets"])
+        _sa_keys = {
+            "type", "project_id", "private_key_id", "private_key",
+            "client_email", "client_id", "auth_uri", "token_uri",
+            "auth_provider_x509_cert_url", "client_x509_cert_url",
+        }
+        creds_info = {k: v for k, v in _raw.items() if k in _sa_keys}
+        # type 필드가 없으면 service_account로 설정
+        creds_info.setdefault("type", "service_account")
+        
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
+        client = gspread.authorize(creds)
+        
+        # URL에서 스프레드시트 ID 추출 또는 URL 직접 사용
+        spreadsheet = client.open_by_url(spreadsheet_url)
+        
+        # '취합_자동' 시트 먼저 시도
         try:
-            # 한글 시트명으로 시도
-            df = conn.read(spreadsheet=spreadsheet_url, worksheet=ws_name, ttl=10)
-        except Exception:
-            # 실패 시 첫 번째 시트(index 0)로 시도
-            df = conn.read(spreadsheet=spreadsheet_url, index=0, ttl=10)
+            ws = spreadsheet.worksheet("취합_자동")
+        except gspread.exceptions.WorksheetNotFound:
+            ws = spreadsheet.get_worksheet(0)  # 첫 번째 시트로 대체
+        
+        records = ws.get_all_records()
+        df = pd.DataFrame(records)
         return clean_and_map_data(df)
     except Exception as e:
-        # repr(e)를 사용하여 인코딩 문제 없이 에러 메시지 출력
         return pd.DataFrame(), f"GSheets Connection Error: {repr(e)}"
 
 def clean_and_map_data(df):
@@ -572,27 +604,22 @@ DEFAULT_GSHEETS_URL = "https://docs.google.com/spreadsheets/d/1T8QB5fQaTLzEYlV5m
 with st.container(border=True):
     st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 설정</div>", unsafe_allow_html=True)
     source_col, input_col = st.columns([1, 2])
-    
+
     with source_col:
         source_option = st.radio(
             "분석할 데이터를 선택해 주세요:",
-            ["구글 스프레드시트 (실시간)", "로컬 엑셀 파일"],
-            index=0, # 구글 스프레드시트가 기본 선택되도록 변경
+            ["구글 스프레드시트(2026실시간)", "엑셀(2025최종/업로드)"],
+            index=0,
             label_visibility="collapsed"
         )
-    
+
     with input_col:
-        if source_option == "구글 스프레드시트 (실시간)":
-            spreadsheet_url = st.text_input(
-                "🔗 구글 스프레드시트 URL:",
-                value=DEFAULT_GSHEETS_URL if DEFAULT_GSHEETS_URL != "여기에_사용하실_구글스프레드시트_링크를_넣어주세요" else "",
-                placeholder="https://docs.google.com/spreadsheets/d/...",
-                label_visibility="collapsed"
-            )
+        if source_option == "구글 스프레드시트(2026실시간)":
+            spreadsheet_url = DEFAULT_GSHEETS_URL if DEFAULT_GSHEETS_URL != "여기에_사용하실_구글스프레드시트_링크를_넣어주세요" else ""
             data_source = spreadsheet_url
             if not spreadsheet_url:
-                st.warning("⚠️ 코드 내 DEFAULT_GSHEETS_URL에 주소를 고정해두거나, 텍스트 상자에 직접 입력해 주세요.")
-                st.stop() # URL이 없을 때만 중단
+                st.warning("⚠️ 코드 내 DEFAULT_GSHEETS_URL에 주소를 고정해두세요.")
+                st.stop()
         else:
             uploaded_file = st.file_uploader("📂 엑셀 파일 업로드 (.xlsx)", type=['xlsx'], label_visibility="collapsed")
             if uploaded_file is not None:
@@ -736,58 +763,66 @@ elif '단위' in filtered_df.columns:
     actual_unit_col = '단위'
 
 # ================================================================
-# 지표별 데이터 소스 분리
-# - 연인원: 명/건='명' 인 행만 → 실적 합계
-# - 실인원/중복실인원: 명/건='명' 인 행만 기준 → 중복 제거 카운트
-#   ('건' 행에는 생년월일/장애유형/장애정도가 없으므로 실인원 계산 대상 외)
+# ★ 신규 집계 로직 (2026-03-13 전면 수정)
+# 사용자 지정 방식으로 연인원/실인원/중복실인원을 계산합니다.
+#
+# 기준 컬럼 (구글 스프레드시트 실제 컬럼명):
+#   A열: 팀이름  |  E열: 이름  |  F열: 생년월일
+#   H열: 장애유형  |  I열: 장애정도  |  L열: 실적  |  M열: 명/건
+#
+# [연인원] M열='명' 인 행의 L열 합산 (기타 포함)
+# [실인원] M열='명' & 이름≠'기타' → [이름+생년월일+장애유형+장애정도] drop_duplicates → len
+# [중복실인원] 위 조건 + 팀이름 추가 → 5개 컬럼 drop_duplicates → len
+#
+# 테스트 케이스:
+#   홍길동(동일인)이 A팀/B팀/C팀에서 총 50회 이용:
+#   연인원=50, 실인원=1, 중복실인원=3  ✓
 # ================================================================
 
-# 1. 연인원: 단위='명' 행의 실적 합계
+# --- Step 1. '명' 단위 행 추출 ---
 if actual_unit_col:
-    cleaned_unit = filtered_df[actual_unit_col].astype(str).str.strip()
-    is_person = (cleaned_unit == '명') | (cleaned_unit == '명(실인원)')
-    df_person = filtered_df[is_person].copy()
+    _cleaned_unit = filtered_df[actual_unit_col].astype(str).str.strip()
+    _is_person = (_cleaned_unit == '명') | (_cleaned_unit == '명(실인원)')
+    df_person = filtered_df[_is_person].copy()
 else:
     df_person = filtered_df.copy()
 
+# --- Step 2. 연인원: '명' 행의 실적 합산 (기타 포함) ---
 if performance_col in df_person.columns:
     df_person[performance_col] = pd.to_numeric(df_person[performance_col], errors='coerce').fillna(0)
     총연인원 = df_person[performance_col].sum()
 else:
     총연인원 = len(df_person)
 
-# 2. 실인원: 단위='명' 행 중에서 이름에 '기타'인 사람 제외 후 중복 제거
-if name_col in df_person.columns:
-    is_etc = df_person[name_col].astype(str).str.contains('기타', na=False)
-    valid_unique_df = df_person[~is_etc].copy()
+# --- 실인원/중복실인원 기준 컬럼: 실제 스프레드시트 컬럼명 직접 사용 ---
+_col_name  = '이름'     if '이름'     in df_person.columns else name_col
+_col_birth = '생년월일' if '생년월일' in df_person.columns else None
+_col_dtype = '장애유형' if '장애유형' in df_person.columns else None
+_col_ddeg  = '장애정도' if '장애정도' in df_person.columns else None
+_col_team  = '팀이름'   if '팀이름'   in df_person.columns else (team_col if team_col in df_person.columns else None)
+
+# 실인원용 4개 컬럼 / 중복실인원용 5개 컬럼 (실제 존재하는 컬럼만 포함)
+_uniq_cols_4 = [c for c in [_col_name, _col_birth, _col_dtype, _col_ddeg] if c and c in df_person.columns]
+_uniq_cols_5 = [c for c in [_col_name, _col_birth, _col_dtype, _col_ddeg, _col_team] if c and c in df_person.columns]
+
+# --- Step 3. '기타' 이름 제외 ---
+if _col_name in df_person.columns:
+    _is_etc = df_person[_col_name].astype(str).str.contains('기타', na=False)
+    _df_for_uniq = df_person[~_is_etc].copy()
 else:
-    valid_unique_df = df_person.copy()
+    _df_for_uniq = df_person.copy()
 
-# 고유ID가 빈값인 행 제외
-valid_unique_df = valid_unique_df.loc[
-    valid_unique_df['고유ID'].notna() & 
-    (valid_unique_df['고유ID'].astype(str).str.strip() != '') &
-    (valid_unique_df['고유ID'].astype(str).str.strip() != 'nan')
-].copy()
+# --- Step 4. 실인원: 4컬럼 기준 drop_duplicates → 고유 행 수 ---
+if _uniq_cols_4:
+    총실인원 = len(_df_for_uniq[_uniq_cols_4].drop_duplicates())
+else:
+    총실인원 = len(_df_for_uniq)
 
-총실인원 = valid_unique_df['고유ID'].nunique()
-총실인원_raw = valid_unique_df['raw_고유ID'].nunique()
-
-# 3. 중복실인원: 이름+생년월일+장애유형+장애정도+팀이름 5가지 기준 중복 제거
-actual_team_col = team_col
-if actual_team_col not in valid_unique_df.columns:
-    for c in valid_unique_df.columns:
-        if '팀' in str(c) or '부서' in str(c) or 'team' in str(c).lower():
-            actual_team_col = c
-            break
-
-if actual_team_col in valid_unique_df.columns:
-    중복실인원 = len(valid_unique_df[['고유ID', actual_team_col]].drop_duplicates())
-    중복실인원_raw = len(valid_unique_df[['raw_고유ID', actual_team_col]].drop_duplicates())
+# --- Step 5. 중복실인원: 5컬럼(팀이름 포함) 기준 drop_duplicates → 고유 조합 수 ---
+if _uniq_cols_5:
+    중복실인원 = len(_df_for_uniq[_uniq_cols_5].drop_duplicates())
 else:
     중복실인원 = 총실인원
-    중복실인원_raw = 총실인원_raw
-    actual_team_col = f"[ERROR] '팀' 콜럼을 찾을 수 없음."
 
 # 4. 일평균 이용자: 연인원 / 운영 일수 (주말 및 법정공휴일 제외)
 def get_biz_days(parsed_dates):
@@ -831,70 +866,12 @@ st.markdown(f"<h3 style='color: {BRAND_GRAY}; border-left: 5px solid {BRAND_RED}
 with st.container(border=True):
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("총 연인원", f"{총연인원:,.0f} 명")
-    # 사용자가 제시한 648/774 목표값에 맞추기 위해 엑셀 수동 방식(Raw)을 기본으로 표시
-    col2.metric("총 실인원", f"{총실인원_raw:,.0f} 명")
-    col3.metric("중복 실인원", f"{중복실인원_raw:,.0f} 명")
+    col2.metric("총 실인원", f"{총실인원:,.0f} 명")
+    col3.metric("중복 실인원", f"{중복실인원:,.0f} 명")
     if biz_days > 0:
         col4.metric("일평균 이용자", f"{일평균이용자:,.1f} 명")
     else:
         col4.metric("일평균 이용자", "-")
-
-# 디버그 정보 (중복실인원 진단용 - 이슈 해결 후 삭제)
-with st.expander("🔍 [개발자 정보] 실인원 비교 진단", expanded=False):
-    st.write(f"**① 현재 필터 지정 데이터 행수(단위=명/건):** `{len(df_person)}행` (연인원 계산 전 원본 행 수)")
-    st.write(f"**② 앱 계산 방식 (이름/날짜 공백 및 표기 오류 자동 교정):** 실인원 `{총실인원}명` / 중복실인원 `{중복실인원}명` (자동으로 동명이인과 오타를 정리한 가장 정확한 숫자)")
-    st.write(f"**③ 엑셀 수동 방식 (오타 방치):** 실인원 `{총실인원_raw}명` / 중복실인원 `{중복실인원_raw}명` (엑셀의 '중복된 항목 제거'와 100% 동일하게 계산한 숫자)")
-    
-    # [디버그용 임시 파일 저장] - 백그라운드에서 전체 데이터 상태 확인용
-    import os
-    try:
-        debug_dir = os.path.join(os.getcwd(), "debug_output")
-        os.makedirs(debug_dir, exist_ok=True)
-        valid_unique_df.to_csv(os.path.join(debug_dir, "valid_unique_debug.csv"), index=False, encoding='utf-8-sig')
-        df.to_csv(os.path.join(debug_dir, "raw_df_debug.csv"), index=False, encoding='utf-8-sig')
-    except Exception as e:
-        st.write(f"Debug save error: {e}")
-
-    # 팀이름 분포 확인
-    if actual_team_col and actual_team_col in valid_unique_df.columns:
-        team_dist = valid_unique_df[actual_team_col].value_counts()
-        st.write(f"**⑤ 팀이름 분포 (행 기준):**")
-        st.dataframe(team_dist.reset_index().rename(columns={actual_team_col: '팀이름', 'count': '행수'}), height=200)
-    
-    # 여러 팀에 걸쳐 나온 이용자 확인
-    if actual_team_col and actual_team_col in valid_unique_df.columns:
-        # 팀 개수 계산
-        team_counts = valid_unique_df.groupby('고유ID')[actual_team_col].nunique()
-        multi_team_ids = team_counts[team_counts > 1].index
-        
-        # 이름과 엮인 팀 목록 추출
-        if len(multi_team_ids) > 0:
-            multi_team_df = valid_unique_df[valid_unique_df['고유ID'].isin(multi_team_ids)]
-            # 팀 이름을 쉼표로 연결
-            team_names = multi_team_df.groupby('고유ID')[actual_team_col].unique().apply(lambda x: ', '.join(map(str, x)))
-            team_names.name = '팀이름(목록)'
-            
-            st.write(f"**⑥ 여러 팀을 이용한 이용자 수:** `{len(multi_team_ids)}명` (이 숫자가 0이면 데이터상 중복없음)")
-            st.write("샘플 (여러 팀 참여 이력):")
-            st.dataframe(team_names.reset_index().head(5), height=200)
-        else:
-            st.write(f"**⑥ 여러 팀을 이용한 이용자 수:** `0명` (데이터상 중복없음)")
-
-    # 이준승 샘플 조회
-    name_col_check = col_map.get('이름', '이름')
-    if name_col_check in valid_unique_df.columns:
-        sample = valid_unique_df[valid_unique_df[name_col_check].astype(str).str.contains('이준승', na=False)]
-        if not sample.empty:
-            show_cols = ['고유ID', name_col_check, actual_team_col] if actual_team_col else ['고유ID', name_col_check]
-            st.write("**⑦ 이준승 데이터 샘플 (valid_unique_df 내):**")
-            st.dataframe(sample[show_cols].head(10))
-            
-        raw_sample = df[df[name_col_check].astype(str).str.contains('이준승', na=False)]
-        if not raw_sample.empty:
-            st.write("**⑧ 이준승 데이터 샘플 (원본 raw df 내):**")
-            # 주요 컬럼만 출력
-            cols_to_show = [c for c in ['팀이름', name_col_check, '단위', '명/건', '생년월일', '장애유형', '장애정도'] if c in raw_sample.columns]
-            st.dataframe(raw_sample[cols_to_show].head(10))
 
 # ================= 연인원 전용 차트 함수 =================
 
@@ -1585,9 +1562,9 @@ with tab1:
 
 # ====== Tab 2: 실인원 현황 (Detailed Implementation) ======
 with tab2:
-    # 실인원용 데이터셋: '기타' 제외 및 고유ID 기준 중복 제거
-    # valid_unique_df는 상단에서 이미 '기타'가 필터링된 상태이므로, 고유ID 기준으로 drop_duplicates 수행
-    df_sil = valid_unique_df.drop_duplicates(subset=['고유ID']).copy()
+    # 실인원용 데이터셋: '기타' 제외 및 [이름+생년월일+장애유형+장애정도] 기준 중복 제거
+    _sil_cols = _uniq_cols_4 if _uniq_cols_4 else None
+    df_sil = _df_for_uniq.drop_duplicates(subset=_sil_cols).copy() if _sil_cols else _df_for_uniq.copy()
     
     if not df_sil.empty:
         # 1. 장애유형별 이용 현황 (실인원)
@@ -1602,7 +1579,7 @@ with tab2:
             draw_age_bar_custom(df_sil, is_disabled=False, title_label="실인원")
             
         # 4. 팀별 중복 실인원 현황 (NEW)
-        draw_team_duplicated_sil(valid_unique_df, col_map)
+        draw_team_duplicated_sil(_df_for_uniq, col_map)
             
     else:
         st.info("실인원 현황을 구성할 수 있는 데이터가 없습니다.")
