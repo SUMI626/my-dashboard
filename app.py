@@ -1888,15 +1888,30 @@ if st.session_state.get("presentation_mode", False):
             st.session_state["pres_slide_idx"] = (idx + 1) % TOTAL_SLIDES
             st.rerun()
 
-    # JS: 자동 전환 타이머 (st.components.v1.html 사용 - Streamlit에서 실제 스크립트 실행 가능)
+    # JS: 브라우저 전체화면 요청 + 자동 전환 타이머
     import streamlit.components.v1 as components
     components.html(
         f"""
         <script>
         (function() {{
+            // 브라우저 전체화면 요청 (Canva 프리젠테이션처럼)
+            var doc = window.parent.document;
+            var elem = doc.documentElement;
+            try {{
+                if (elem.requestFullscreen) {{
+                    elem.requestFullscreen();
+                }} else if (elem.webkitRequestFullscreen) {{
+                    elem.webkitRequestFullscreen();
+                }} else if (elem.mozRequestFullScreen) {{
+                    elem.mozRequestFullScreen();
+                }} else if (elem.msRequestFullscreen) {{
+                    elem.msRequestFullscreen();
+                }}
+            }} catch(e) {{}}
+
+            // 자동 전환 타이머
             var _timer = setTimeout(function() {{
-                // '다음 ▶' 버튼 클릭으로 슬라이드 전환
-                var btns = window.parent.document.querySelectorAll('button');
+                var btns = doc.querySelectorAll('button');
                 for (var i = 0; i < btns.length; i++) {{
                     if (btns[i].textContent.trim().includes('다음')) {{
                         btns[i].click();
