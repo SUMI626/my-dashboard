@@ -724,20 +724,19 @@ if not _is_pres:
             label_visibility="collapsed"
         )
 else:
-    # 프리젠테이션 모드: 종료 버튼만 오른쪽 상단에 표시
-    _exit_col = st.columns([8.5, 1.5])[1]
+    # 프리젠테이션 모드: 종료 버튼만 오른쪽 상단에 표시 (너비 작게)
+    _exit_col = st.columns([9.25, 0.75])[1]
     with _exit_col:
         if st.button("❌ 종료", key="pres_exit_btn", use_container_width=True, type="primary"):
             st.session_state["presentation_mode"] = False
             st.rerun()
 
 
-# ================= 데이터 소스 설정 (메인 화면) =================
-# 여기에 사용할 구글 스프레드시트 주소를 고정으로 입력하세요.
+# ================= 데이터 소스 설정 (메인 화면, 프리젠테이션 모드에서는 숨김) =================
 DEFAULT_GSHEETS_URL = "https://docs.google.com/spreadsheets/d/1T8QB5fQaTLzEYlV5mgphGd-n8pMGHdJzq4OZo-HeJoI/edit"
 
-with st.container(border=True):
-    if not _is_pres:
+if not _is_pres:
+    with st.container(border=True):
         st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 설정</div>", unsafe_allow_html=True)
         source_col, input_col = st.columns([1, 2])
 
@@ -766,10 +765,10 @@ with st.container(border=True):
                     data_source = "2025실적데이터.xlsx"
                     st.info("ℹ️ 업로드된 파일이 없어 '2025실적데이터.xlsx'를 기본으로 사용합니다.")
                 st.session_state["_pres_data_source"] = data_source
-    else:
-        # 프리젠테이션 모드: 세션 상태에서 마지막 값 복원
-        source_option = st.session_state.get("_pres_source_option", "구글 스프레드시트(2026실시간)")
-        data_source = st.session_state.get("_pres_data_source", DEFAULT_GSHEETS_URL)
+else:
+    # 프리젠테이션 모드: 세션 상태에서 마지막 값 복원
+    source_option = st.session_state.get("_pres_source_option", "구글 스프레드시트(2026실시간)")
+    data_source = st.session_state.get("_pres_data_source", DEFAULT_GSHEETS_URL)
 
 with st.spinner("데이터를 불러오고 처리하는 중입니다..."):
     if source_option == "엑셀(2025최종/업로드)":
@@ -1874,28 +1873,28 @@ if st.session_state.get("presentation_mode", False):
             st.session_state["pres_slide_idx"] = (idx + 1) % TOTAL_SLIDES
             st.rerun()
 
-    # JS: body에 pres-active 클래스 추가 + 자동 진행 타이머
-    st.markdown(
+    # JS: 자동 전환 타이머 (st.components.v1.html 사용 - Streamlit에서 실제 스크립트 실행 가능)
+    import streamlit.components.v1 as components
+    components.html(
         f"""
         <script>
         (function() {{
-            // body 클래스 추가 (CSS 숨김 트리거)
-            document.body.classList.add('pres-active');
-
-            // 자동 전환 타이머
             var _timer = setTimeout(function() {{
-                // Streamlit 재실행 트리거: '다음 ▶' 버튼을 클릭
-                var btns = Array.from(document.querySelectorAll('button'));
-                var nextBtn = btns.find(b => b.textContent.includes('다음'));
-                if (nextBtn) nextBtn.click();
+                // '다음 ▶' 버튼 클릭으로 슬라이드 전환
+                var btns = window.parent.document.querySelectorAll('button');
+                for (var i = 0; i < btns.length; i++) {{
+                    if (btns[i].textContent.trim().includes('다음')) {{
+                        btns[i].click();
+                        break;
+                    }}
+                }}
             }}, {pres_interval_val * 1000});
 
-            // 페이지 언로드 시 타이머 제거
             window.addEventListener('beforeunload', function() {{
                 clearTimeout(_timer);
             }});
         }})();
         </script>
         """,
-        unsafe_allow_html=True
+        height=0,
     )
