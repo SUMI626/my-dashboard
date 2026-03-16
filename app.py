@@ -477,10 +477,10 @@ def clean_and_map_data(df):
 def apply_chart_style(fig):
     """범례 크기 조정 및 모든 텍스트 색상 강제 지정. 프리젠테이션 모드에서는 폰트/높이를 키움."""
     _pres = st.session_state.get("presentation_mode", False)
-    _font_size   = 22 if _pres else 13
-    _legend_size = 20 if _pres else 13
-    _tick_size   = 22 if _pres else 12
-    _title_size  = 22 if _pres else 15
+    _font_size   = 16 if _pres else 13
+    _legend_size = 16 if _pres else 13
+    _tick_size   = 16 if _pres else 12
+    _title_size  = 18 if _pres else 15
     _height      = 500 if _pres else None
     _margin      = dict(t=30, b=30, l=60, r=40) if _pres else dict(t=10, b=50, l=50, r=50)
 
@@ -527,7 +527,7 @@ def draw_monthly_trend(df_data):
         )
         
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (연인원 합계 기준)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (연인원 합계 기준)</div>", unsafe_allow_html=True)
             fig = px.line(monthly_counts, x='월', y='이용자수', markers=True,
                           text='이용자수',
                           hover_data={'증감률_텍스트': True, '이용자수': ':,.0f'})
@@ -548,7 +548,7 @@ def draw_daily_crowdedness(df_data):
         daily_counts = daily_counts.sort_values('요일')
         
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🕒 요일별 이용자 혼잡도</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🕒 요일별 이용자 혼잡도</div>", unsafe_allow_html=True)
             fig = px.bar(daily_counts, x='요일명', y='이용자수', 
                          text='이용자수',
                          color='이용자수',
@@ -1087,7 +1087,7 @@ def draw_disability_donut_yeon(df_yeon, col_map, title_label="연인원", target
             
             with st.container(border=True):
                 display_title = custom_title if custom_title else f"♿ 장애유형별 이용 현황 ({title_label}: {total_sum:,.0f}명)"
-                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>{display_title}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>{display_title}</div>", unsafe_allow_html=True)
                 fig = px.pie(dist_data, names='_범례', values='실적', hole=0.5, 
                              color_discrete_sequence=colors)
                 
@@ -1096,7 +1096,7 @@ def draw_disability_donut_yeon(df_yeon, col_map, title_label="연인원", target
                 
                 # 사용자 요청 세부 스타일 덮어쓰기
                 fig.update_traces(
-                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=13,
+                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=18 if st.session_state.get("presentation_mode", False) else 13,
                     hovertemplate="<b>%{label}</b><br>실적: %{value:,.0f}<extra></extra>",
                     domain=dict(x=[0.2, 0.55], y=[0.2, 0.8]) # 도넛 크기 축소 및 위치 조정
                 )
@@ -1148,8 +1148,8 @@ def draw_age_bar_custom(df_yeon, is_disabled=True, title_label="연인원"):
         
         with st.container(border=True):
             _pres = st.session_state.get("presentation_mode", False)
-            _bar_txt = 22 if _pres else 12
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👥 {title} ({title_label}: {total_sub:,.0f}명)</div>", unsafe_allow_html=True)
+            _bar_txt = 18 if _pres else 12
+            st.markdown(f"<div style='font-size:{24 if _pres else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👥 {title} ({title_label}: {total_sub:,.0f}명)</div>", unsafe_allow_html=True)
             fig = px.bar(age_data, x='_연령대', y='실적',
                          color_discrete_sequence=[color],
                          category_orders={"_연령대": ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상', '정보없음']},
@@ -1195,7 +1195,7 @@ def draw_etc_top10_yeon(df_yeon, col_map):
             
             with st.container(border=True): # 연령대 그래프와 똑같은 디자인의 박스
                 # 상단 연령대 차트와 타이틀 스타일 완벽 동기화 (폰트, 굵기, 아이콘)
-                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석 (연인원: {total_etc:,.0f}명)</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석 (연인원: {total_etc:,.0f}명)</div>", unsafe_allow_html=True)
                 
                 # values는 영역 크기 제어용(visual_weight), color는 색상 농도 제어용(실적)
                 fig = px.treemap(etc_stats, path=[project_col], values='visual_weight',
@@ -1205,7 +1205,7 @@ def draw_etc_top10_yeon(df_yeon, col_map):
                 fig.update_traces(
                     textinfo="label+value", # 사업명 + 인원수 표시
                     hovertemplate="<b>%{label}</b><br>실적: %{value:,.0f}명<extra></extra>",
-                    textfont=dict(color="#333333", size=12, family="Arial Black"), # 12px 고정
+                    textfont=dict(color="#333333", size=18 if st.session_state.get("presentation_mode", False) else 12, family="Arial Black"), # 12px 고정
                     marker=dict(line=dict(width=1, color='white'))
                 )
                 fig.update_layout(
@@ -1639,13 +1639,13 @@ def draw_new_user_analysis(df_data, col_map):
                 st.info("월별 신규 이용자 데이터가 없습니다.")
                 
         with col2:
-            st.markdown(f"<div style='font-size:15px; font-weight:bold; color:#555; margin-bottom:5px;'>🎯 신규 이용자의 타 프로그램 이용 (Top 10)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:{20 if st.session_state.get('presentation_mode', False) else 15}px; font-weight:bold; color:#555; margin-bottom:5px;'>🎯 신규 이용자의 타 프로그램 이용 (Top 10)</div>", unsafe_allow_html=True)
             if not top10_others.empty:
                 fig2 = px.bar(top10_others, x='이용건수', y=project_col, orientation='h', text='이용건수')
-                fig2.update_traces(marker_color=BRAND_RED, texttemplate='<b>%{text:,.0f}건</b>', textposition='inside')
+                fig2.update_traces(marker_color=BRAND_RED, texttemplate='<b>%{text:,.0f}건</b>', textposition='inside', textfont_size=18 if st.session_state.get('presentation_mode', False) else 12)
                 fig2.update_layout(yaxis={'categoryorder': 'total ascending'}, yaxis_title="", xaxis_title="")
                 fig2 = apply_chart_style(fig2)
-                fig2.update_layout(height=400, margin=dict(t=10, b=20, l=220, r=20))
+                fig2.update_layout(height=400, margin=dict(t=10, b=20, l=350 if st.session_state.get('presentation_mode', False) else 220, r=20))
                 st.plotly_chart(fig2, use_container_width=True)
             else:
                 st.info("타 프로그램 이용 내역이 없습니다.")
@@ -1661,7 +1661,7 @@ def draw_team_duplicated_sil(valid_unique_df, col_map):
         total_dup = team_counts['실인원'].sum()
 
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 팀세부 실인원 현황 (중복 실인원 합계: {total_dup:,.0f}명)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 팀세부 실인원 현황 (중복 실인원 합계: {total_dup:,.0f}명)</div>", unsafe_allow_html=True)
             # 수직 막대 그래프로 변경 (팀별 규모 파악 용이)
             fig = px.bar(team_counts, x=team_col, y='실인원', text='실인원',
                          color_discrete_sequence=[BRAND_RED])
