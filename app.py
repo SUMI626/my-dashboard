@@ -1382,7 +1382,7 @@ def draw_preferred_donut_disability_presentation(df_yeon, col_map, target_disabi
         colors = [palette[i % len(palette)] for i in range(len(top_stats))]
 
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>⭐ {target_disability} 선호 프로그램 (Top 5) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>⭐ <span style='color:{BRAND_RED};'>{target_disability}</span> 선호 프로그램 (Top 5) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
             fig = px.pie(top_stats, names='_범례', values=perf_col, hole=0.5, 
                          color_discrete_sequence=colors)
             
@@ -1403,14 +1403,6 @@ def draw_preferred_donut_disability_presentation(df_yeon, col_map, target_disabi
                 margin=dict(t=0, b=0, l=0, r=0, pad=0),
                 height=500,
                 paper_bgcolor='rgba(0,0,0,0)'
-            )
-            
-            fig.add_annotation(
-                text=f"<b>{target_disability}</b>",
-                showarrow=False,
-                font=dict(size=20, color=BRAND_GRAY),
-                x=0.325, y=0.5,
-                xref="paper", yref="paper"
             )
             
             st.plotly_chart(fig, use_container_width=True)
@@ -1468,7 +1460,6 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
             text_matrix.append(row_text)
 
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🔥 연령대별 선호 프로그램 분포 (Top 3 종합) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
             
             # Using red color scale
             fig = px.imshow(pivot_pct,
