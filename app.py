@@ -1985,7 +1985,7 @@ if st.session_state.get("presentation_mode", False):
         for d_type in dynamic_disabilities:
             def make_slide_fn(dt=d_type):
                 return lambda: draw_preferred_donut_disability_presentation(df_yeon, col_map, dt)
-            DYNAMIC_PREF_SLIDES.append((f"{d_type} 선호 프로그램", make_slide_fn()))
+            DYNAMIC_PREF_SLIDES.append(("장애유형별 선호 프로그램", make_slide_fn()))
 
     def _slide_age_disabled():
         draw_age_bar_custom(df_yeon, is_disabled=True)
