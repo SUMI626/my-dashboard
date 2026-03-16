@@ -1327,6 +1327,196 @@ def draw_preferred_bar_disability(df_yeon, col_map):
             fig.update_xaxes(range=[0, 100])
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
+# 7-2. 장애유형별 선호 프로그램 (단일 유형 도넛 차트 - 프리젠테이션용)
+def draw_preferred_donut_disability_presentation(df_yeon, col_map, target_disability):
+    group_col = col_map.get('장애유형', '장애유형')
+    project_col = col_map.get('세부사업', '세부사업')
+    perf_col = col_map.get('실적', '실적')
+    
+    group_map = {
+        '지체장애': 'Red', '뇌병변장애': 'Red', '시각장애': 'Red', '청각장애': 'Red', '언어장애': 'Red',
+        '신장장애': 'Blue', '심장장애': 'Blue', '간장애': 'Blue', '장루요루장애': 'Blue', '뇌전증장애': 'Blue',
+        '지적장애': 'Yellow', '자폐성장애': 'Yellow', '정신장애': 'Yellow',
+        '미등록': 'Gray', '비장애': 'Gray'
+    }
+
+    group_palettes = {
+        'Red': [BRAND_RED, "#D65C69", "#E98C8E", "#F2B0B2", "#F9D4D5", "#FCEEEF"],
+        'Blue': [BRAND_BLUE, CHART_BLUE, "#A4CAD2", "#C6E0E6", "#E3EFF2", "#F0F7F9"],
+        'Yellow': [BRAND_YELLOW, CHART_YELLOW, "#F9D59B", "#FBE6C4", "#FDF3E2", "#FEF9F0"],
+        'Gray': [BRAND_GRAY, CHART_GRAY, "#BDBDBD", "#D6D6D6", "#EBEBEB", "#F5F5F5"]
+    }
+
+    if group_col in df_yeon.columns and project_col in df_yeon.columns:
+        # 데이터 필터링
+        df_filtered = df_yeon[df_yeon[group_col] == target_disability].copy()
+        df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
+        
+        if df_filtered.empty:
+            st.info(f"{target_disability}의 프로그램 이용 내역이 없습니다.")
+            return
+
+        stats = df_filtered.groupby([project_col])[perf_col].sum().reset_index()
+        top_stats = stats.sort_values(perf_col, ascending=False).head(5).copy()
+        
+        if top_stats.empty:
+            st.info(f"{target_disability}의 프로그램 이용 내역이 없습니다.")
+            return
+
+        total_sum = top_stats[perf_col].sum()
+        top_stats['_범례'] = top_stats.apply(
+            lambda r: f"{r[project_col]} {r[perf_col]:,.0f}명 ({(r[perf_col]/total_sum)*100:.1f}%)" if total_sum > 0 else f"{r[project_col]} {r[perf_col]:,.0f}명 (0.0%)", axis=1
+        )
+        
+        chart_labels = []
+        for i, row in top_stats.iterrows():
+            perc = (row[perf_col] / total_sum) * 100 if total_sum > 0 else 0
+            if perc >= 5: # 5% 이상만 텍스트 표시
+                chart_labels.append(f"<b>{row[project_col]}</b><br>{perc:.1f}%")
+            else:
+                chart_labels.append("")
+
+        # 컬러 매핑
+        grp = group_map.get(target_disability, 'Gray')
+        palette = group_palettes[grp]
+        colors = [palette[i % len(palette)] for i in range(len(top_stats))]
+
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>⭐ {target_disability} 선호 프로그램 (Top 5) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
+            fig = px.pie(top_stats, names='_범례', values=perf_col, hole=0.5, 
+                         color_discrete_sequence=colors)
+            
+            fig = apply_chart_style(fig)
+            
+            fig.update_traces(
+                text=chart_labels, textinfo='text', textposition='outside', textfont_size=18,
+                hovertemplate="<b>%{label}</b><br>실적: %{value:,.0f}<extra></extra>",
+                domain=dict(x=[0.1, 0.55], y=[0.1, 0.9])
+            )
+            fig.update_layout(
+                showlegend=True,
+                legend=dict(
+                    x=0.65, xanchor='left',
+                    y=0.5, yanchor='middle',
+                    font=dict(size=18)
+                ),
+                margin=dict(t=0, b=0, l=0, r=0, pad=0),
+                height=500,
+                paper_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            fig.add_annotation(
+                text=f"<b>{target_disability}</b>",
+                showarrow=False,
+                font=dict(size=20, color=BRAND_GRAY),
+                x=0.325, y=0.5,
+                xref="paper", yref="paper"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+
+# 8. 연령대별 선호 프로그램 (히트맵 - 프리젠테이션용 제안)
+def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
+    project_col = col_map.get('세부사업', '세부사업')
+    perf_col = col_map.get('실적', '실적')
+    group_col = '_연령대'
+    
+    age_order = ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상']
+
+    if group_col in df_yeon.columns and project_col in df_yeon.columns:
+        df_filtered = df_yeon[df_yeon[group_col].isin(age_order)].copy()
+        df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
+        
+        stats = df_filtered.groupby([group_col, project_col])[perf_col].sum().reset_index()
+        
+        # 각 연령대별 상위 3개 추출
+        top_stats = stats.sort_values([group_col, perf_col], ascending=[True, False]).groupby(group_col).head(3).copy()
+        
+        if top_stats.empty:
+            st.info("연령대별 선호 프로그램 내역이 없습니다.")
+            return
+
+        # Pivot to create heatmap format
+        pivot_df = top_stats.pivot(index=project_col, columns=group_col, values=perf_col).fillna(0)
+        
+        # Ensure age columns are ordered correctly
+        existing_cols = [col for col in age_order if col in pivot_df.columns]
+        pivot_df = pivot_df[existing_cols]
+
+        # Calculate percentages per age group
+        pivot_pct = pivot_df.transpose().apply(lambda x: x / x.sum() * 100 if x.sum() != 0 else x, axis=1).transpose()
+        
+        # Sort rows by total sum to have popular ones at top
+        pivot_df["_Total"] = pivot_df.sum(axis=1)
+        pivot_df = pivot_df.sort_values("_Total", ascending=True)
+        pivot_df = pivot_df.drop(columns=["_Total"])
+        
+        # Re-sort percentages to match
+        pivot_pct = pivot_pct.loc[pivot_df.index]
+
+        # Prepare annotations (text to display inside cells)
+        text_matrix = []
+        for i, row in pivot_df.iterrows():
+            row_text = []
+            for col in pivot_df.columns:
+                val = pivot_df.loc[i, col]
+                pct = pivot_pct.loc[i, col]
+                if val > 0:
+                    row_text.append(f"{val:,.0f}명<br>({pct:.1f}%)")
+                else:
+                    row_text.append("")
+            text_matrix.append(row_text)
+
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🔥 연령대별 선호 프로그램 분포 (Top 3 종합) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
+            
+            # Using red color scale
+            fig = px.imshow(pivot_pct,
+                            labels=dict(x="연령대", y="세부사업", color="선호 비중(%)"),
+                            x=pivot_df.columns,
+                            y=pivot_df.index,
+                            text_auto=False, 
+                            color_continuous_scale=[[0, '#FFF9E1'], [1, BRAND_RED]],
+                            aspect="auto")
+
+            fig.update_traces(
+                hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>",
+            )
+
+            # Add Text Annotations
+            annotations = []
+            for y_idx, y_val in enumerate(pivot_df.index):
+                for x_idx, x_val in enumerate(pivot_df.columns):
+                    cell_text = text_matrix[y_idx][x_idx]
+                    if cell_text:
+                        # For darker colors (higher pct), use white text. For lighter use dark gray.
+                        text_color = "white" if pivot_pct.loc[y_val, x_val] > 30 else "#333333"
+                        annotations.append(
+                            dict(
+                                x=x_val,
+                                y=y_val,
+                                text=cell_text,
+                                showarrow=False,
+                                font=dict(color=text_color, size=13)
+                            )
+                        )
+            
+            fig = apply_chart_style(fig)
+
+            fig.update_layout(
+                xaxis_title="연령대",
+                yaxis_title="프로그램명",
+                height=800, # Increased height to accommodate all rows without squeezing
+                coloraxis_showscale=False,
+                margin=dict(t=20, b=10, l=10, r=10),
+                annotations=annotations
+            )
+            # Make the axes tick font size large for presentation
+            fig.update_yaxes(tickfont=dict(size=18))
+            fig.update_xaxes(tickfont=dict(size=18), side="bottom")
+
+            st.plotly_chart(fig, use_container_width=True)
+
 # 8. 연령대별 선호 프로그램 (가로 막대그래프)
 def draw_preferred_bar_age(df_yeon, col_map):
     project_col = col_map.get('세부사업', '세부사업')
@@ -1779,6 +1969,24 @@ if st.session_state.get("presentation_mode", False):
     def _slide_disability_yeon():
         draw_disability_donut_yeon(df_yeon, col_map)
 
+    # 동적 생성 슬라이드 추가용 리스트 (장애유형별 선호 프로그램 - 도넛)
+    DYNAMIC_PREF_SLIDES = []
+    disability_col = col_map.get('장애유형', '장애유형')
+    if disability_col in df_yeon.columns:
+        preferred_order = [
+            '지적장애', '자폐성장애', '뇌병변장애', '지체장애', '청각장애', '시각장애', '정신장애',
+            '언어장애', '신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애', '안면장애', '미등록'
+        ]
+        actual_disabilities = [str(x) for x in df_yeon[disability_col].dropna().unique() if str(x).strip() != '']
+        ordered = [d for d in preferred_order if d in actual_disabilities]
+        extras = sorted([d for d in actual_disabilities if d not in preferred_order and d != '비장애'])
+        dynamic_disabilities = ordered + extras
+
+        for d_type in dynamic_disabilities:
+            def make_slide_fn(dt=d_type):
+                return lambda: draw_preferred_donut_disability_presentation(df_yeon, col_map, dt)
+            DYNAMIC_PREF_SLIDES.append((f"{d_type} 선호 프로그램", make_slide_fn()))
+
     def _slide_age_disabled():
         draw_age_bar_custom(df_yeon, is_disabled=True)
 
@@ -1797,6 +2005,9 @@ if st.session_state.get("presentation_mode", False):
     def _slide_new_user():
         draw_new_user_analysis(df_yeon, col_map)
 
+    def _slide_heatmap_age():
+        draw_preferred_heatmap_age_presentation(df_yeon, col_map)
+
     def _slide_disability_sil():
         draw_disability_donut_yeon(df_sil_p, col_map, title_label="실인원")
 
@@ -1811,6 +2022,8 @@ if st.session_state.get("presentation_mode", False):
 
     SLIDES = [
         ("장애유형별 이용 현황 (연인원)",         _slide_disability_yeon),
+    ] + DYNAMIC_PREF_SLIDES + [
+        ("연령대별 선호 프로그램 (히트맵 테스트)",  _slide_heatmap_age),
         ("연령대별 현황 – 장애/미등록 (연인원)",   _slide_age_disabled),
         ("연령대별 현황 – 비장애 (연인원)",        _slide_age_nondisabled),
         ("월별 이용자 추이",                       _slide_monthly),
