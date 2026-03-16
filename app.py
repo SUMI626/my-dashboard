@@ -484,25 +484,28 @@ def apply_chart_style(fig):
     _height      = 500 if _pres else None
     _margin      = dict(t=30, b=30, l=60, r=40) if _pres else dict(t=10, b=50, l=50, r=50)
 
-    axis_style = dict(
-        tickfont=dict(color="#31333F", size=_tick_size),
-        title_font=dict(color="#31333F", size=_title_size),
-        automargin=True,
-    )
-
     layout_kwargs = dict(
         legend=dict(itemsizing='constant', font=dict(size=_legend_size, color="#31333F")),
         margin=_margin,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color="#31333F", size=_font_size),
-        xaxis=axis_style,
-        yaxis=axis_style,
     )
     if _height is not None:
         layout_kwargs["height"] = _height
 
     fig.update_layout(**layout_kwargs)
+    
+    fig.update_xaxes(
+        tickfont=dict(color="#31333F", size=_tick_size),
+        title_font=dict(color="#31333F", size=_title_size),
+        automargin=True
+    )
+    fig.update_yaxes(
+        tickfont=dict(color="#31333F", size=_tick_size),
+        title_font=dict(color="#31333F", size=_title_size),
+        automargin=True
+    )
     return fig
 
 # 1. 월별 이용자 추이 (선 그래프 + 전월대비 %)
@@ -1045,40 +1048,6 @@ if not st.session_state.get("presentation_mode", False):
 
 # ================= 연인원 전용 차트 함수 =================
 
-# ================= 연인원 전용 차트 함수 =================
-
-# 1. 장애유형별 이용 현황 (도넛 그래프 / 가로 막대 그래프 전환)
-def draw_disability_bar_yeon(df_yeon, col_map, title_label="연인원"):
-    disability_col = col_map.get('장애유형', '장애유형')
-    perf_col = col_map.get('실적', '실적')
-    
-    if disability_col in df_yeon.columns:
-        if title_label == "실인원":
-            dist_data = df_yeon.groupby(disability_col).size().reset_index(name='실적')
-        else:
-            dist_data = df_yeon.groupby(disability_col)[perf_col].sum().reset_index(name='실적')
-        dist_data = dist_data[dist_data['실적'] > 0]
-        
-        if not dist_data.empty:
-            dist_data = dist_data.sort_values(by='실적', ascending=True).reset_index(drop=True)
-            total_sum = dist_data['실적'].sum()
-            
-            with st.container(border=True):
-                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 장애유형별 이용 현황 ({title_label}: {total_sum:,.0f}명)</div>", unsafe_allow_html=True)
-                
-                color = CHART_RED if title_label == "실인원" else BRAND_BLUE
-                fig = px.bar(dist_data, x='실적', y=disability_col, orientation='h',
-                             text='실적', color_discrete_sequence=[color])
-                
-                fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside')
-                fig.update_layout(
-                    xaxis_title="인원(명)", 
-                    yaxis_title="장애유형",
-                    margin=dict(t=10, b=10, l=10, r=40),
-                    height=max(400, len(dist_data) * 25 + 100)
-                )
-                st.plotly_chart(apply_chart_style(fig), use_container_width=True)
-
 def draw_disability_donut_yeon(df_yeon, col_map, title_label="연인원", target_col=None, custom_title=None, center_label=None):
     disability_col = target_col if target_col else col_map.get('장애유형', '장애유형')
     perf_col = col_map.get('실적', '실적')
@@ -1178,19 +1147,22 @@ def draw_age_bar_custom(df_yeon, is_disabled=True, title_label="연인원"):
         total_sub = age_data['실적'].sum()
         
         with st.container(border=True):
+            _pres = st.session_state.get("presentation_mode", False)
+            _bar_txt = 22 if _pres else 12
             st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👥 {title} ({title_label}: {total_sub:,.0f}명)</div>", unsafe_allow_html=True)
-            fig = px.bar(age_data, x='_연령대', y='실적', 
+            fig = px.bar(age_data, x='_연령대', y='실적',
                          color_discrete_sequence=[color],
                          category_orders={"_연령대": ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상', '정보없음']},
                          text='실적')
-            fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside', textfont_size=12) # 폰트 12px 최적화
-            fig.update_layout(
-                xaxis_title="연령대", 
-                yaxis_title="실적 합계",
-                margin=dict(t=10), # 상단 여백 확보
-                yaxis=dict(range=[0, max_val * 1.2]) # Y축 범위 20% 확장 (숫자 잘림 방지)
-            )
-            st.plotly_chart(apply_chart_style(fig), use_container_width=True)
+            fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside', textfont_size=_bar_txt)
+            # apply_chart_style 먼저 적용 (전체 스타일 + 축 폰트 크기)
+            fig = apply_chart_style(fig)
+            # 이후 차트 전용 설정 (apply_chart_style와 충돌하지 않도록 update_xaxes, update_yaxes 사용)
+            fig.update_layout(margin=dict(t=10))
+            fig.update_xaxes(title_text="연령대")
+            fig.update_yaxes(title_text="실적 합계", range=[0, max_val * 1.2])  # Y축 범위만 추가 지정
+            st.plotly_chart(fig, use_container_width=True)
+
 
 # 4. 익명 참여자 분석 (Top 5 - 트리맵 방식)
 def draw_etc_top10_yeon(df_yeon, col_map):
