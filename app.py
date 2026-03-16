@@ -1105,7 +1105,7 @@ def draw_disability_donut_yeon(df_yeon, col_map, title_label="연인원", target
                     legend=dict(
                         x=0.65, xanchor='left', # 도넛에 더 밀착 배치
                         y=0.5, yanchor='middle',
-                        font=dict(size=12)
+                        font=dict(size=18 if st.session_state.get("presentation_mode", False) else 12)
                     ),
                     margin=dict(t=0, b=0, l=0, r=0, pad=0), # 상하좌우 여백 및 패딩 완전 제거
                     height=500, # 물리적으로 높이 축소 (550 -> 500)
