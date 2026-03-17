@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
@@ -1474,7 +1474,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
                             y=pivot_df.index,
                             text_auto=False, 
                             color_continuous_scale=[[0, '#FFF9E1'], [1, BRAND_RED]],
-                            aspect="auto")
+                            aspect="equal")
 
             fig.update_traces(
                 hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>",
