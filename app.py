@@ -1514,9 +1514,9 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
                 margin=dict(t=20, b=60, l=10, r=10),
                 annotations=annotations
             )
-            # Make the axes tick font size for presentation
-            fig.update_yaxes(tickfont=dict(size=17))
-            fig.update_xaxes(tickfont=dict(size=17), side="bottom")
+            # tickfont 및 title_font를 apply_chart_style 기준(18px)에 맞춰 덮어쓰기
+            fig.update_yaxes(tickfont=dict(size=17), title_font=dict(size=18, color="#31333F"))
+            fig.update_xaxes(tickfont=dict(size=17), title_font=dict(size=18, color="#31333F"), side="bottom")
 
             st.plotly_chart(fig, use_container_width=True)
 
@@ -1826,7 +1826,7 @@ def draw_new_user_analysis(df_data, col_map):
                 fig1.update_xaxes(dtick=1, labelalias={i: f"{i}월" for i in range(1, 13)}, title="")
                 fig1.update_yaxes(title="")
                 fig1 = apply_chart_style(fig1)
-                fig1.update_layout(height=700, margin=dict(t=10, b=20, l=20, r=20))
+                fig1.update_layout(height=620, margin=dict(t=10, b=20, l=20, r=20))
                 st.plotly_chart(fig1, use_container_width=True)
             else:
                 st.info("월별 신규 이용자 데이터가 없습니다.")
@@ -2047,7 +2047,7 @@ if st.session_state.get("presentation_mode", False):
     SLIDES = [
         ("장애유형별 이용 현황 (연인원)",         _slide_disability_yeon),
     ] + DYNAMIC_PREF_SLIDES + [
-        ("연령대별 선호 프로그램 (히트맵 테스트)",  _slide_heatmap_age),
+        ("연령대별 선호 프로그램",  _slide_heatmap_age),
         ("연령대별 현황 – 장애/미등록 (연인원)",   _slide_age_disabled),
         ("연령대별 현황 – 비장애 (연인원)",        _slide_age_nondisabled),
         ("월별 이용자 추이",                       _slide_monthly),
