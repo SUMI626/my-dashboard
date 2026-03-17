@@ -40,6 +40,12 @@ p, span, label, div[data-testid="stMarkdownContainer"] p {{
     color: #31333f !important;
 }}
 
+/* 장애유형 강조 색상 (전역 span 스타일 덮어쓰기용) */
+.disability-highlight {{
+    color: #BE1E2D !important;
+    font-weight: bold !important;
+}}
+
 /* 데이터 소스 라디오 버튼 글씨 */
 div[data-testid="stWidgetLabel"] p, div[data-testid="stRadio"] label {{
     color: #31333f !important;
@@ -1382,7 +1388,7 @@ def draw_preferred_donut_disability_presentation(df_yeon, col_map, target_disabi
         colors = [palette[i % len(palette)] for i in range(len(top_stats))]
 
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>⭐ <span style='color:{BRAND_RED};'>{target_disability}</span> 선호 프로그램 (Top 5) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>⭐ <span class='disability-highlight'>{target_disability}</span> 선호 프로그램 (Top 5) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
             fig = px.pie(top_stats, names='_범례', values=perf_col, hole=0.5, 
                          color_discrete_sequence=colors)
             
@@ -1497,14 +1503,14 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
             fig.update_layout(
                 xaxis_title="연령대",
                 yaxis_title="프로그램명",
-                height=800, # Increased height to accommodate all rows without squeezing
+                height=580,
                 coloraxis_showscale=False,
-                margin=dict(t=20, b=10, l=10, r=10),
+                margin=dict(t=20, b=60, l=10, r=10),
                 annotations=annotations
             )
-            # Make the axes tick font size large for presentation
-            fig.update_yaxes(tickfont=dict(size=18))
-            fig.update_xaxes(tickfont=dict(size=18), side="bottom")
+            # Make the axes tick font size for presentation
+            fig.update_yaxes(tickfont=dict(size=14))
+            fig.update_xaxes(tickfont=dict(size=12), side="bottom")
 
             st.plotly_chart(fig, use_container_width=True)
 
