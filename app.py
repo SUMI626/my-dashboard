@@ -1516,7 +1516,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
             )
             # Make the axes tick font size for presentation
             fig.update_yaxes(tickfont=dict(size=17))
-            fig.update_xaxes(tickfont=dict(size=15), side="bottom")
+            fig.update_xaxes(tickfont=dict(size=17), side="bottom")
 
             st.plotly_chart(fig, use_container_width=True)
 
@@ -1857,7 +1857,7 @@ def draw_new_user_analysis(df_data, col_map):
                 )
                 fig2 = apply_chart_style(fig2)
                 fig2.update_layout(
-                    height=700,
+                    height=620,
                     margin=dict(t=0, b=20, l=350 if is_pres else 220, r=80)
                 )
                 st.plotly_chart(fig2, use_container_width=True)
