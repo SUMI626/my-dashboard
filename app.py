@@ -1179,6 +1179,12 @@ def draw_etc_top10_yeon(df_yeon, col_map):
     
     df_etc = df_yeon[df_yeon[name_col].astype(str).str.contains('기타', na=False)].copy()
     
+    if df_etc.empty:
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석</div>", unsafe_allow_html=True)
+            st.info("'기타' 항목으로 등록된 이용자 데이터가 없습니다.")
+        return
+    
     if not df_etc.empty:
         if team_col in df_etc.columns:
             mask_8gihek = df_etc[team_col].astype(str).str.contains('8기획', na=False)
@@ -1494,7 +1500,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
                                 y=y_val,
                                 text=cell_text,
                                 showarrow=False,
-                                font=dict(color=text_color, size=15)
+                                font=dict(color=text_color, size=17)
                             )
                         )
             
@@ -1509,8 +1515,8 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
                 annotations=annotations
             )
             # Make the axes tick font size for presentation
-            fig.update_yaxes(tickfont=dict(size=14))
-            fig.update_xaxes(tickfont=dict(size=12), side="bottom")
+            fig.update_yaxes(tickfont=dict(size=17))
+            fig.update_xaxes(tickfont=dict(size=15), side="bottom")
 
             st.plotly_chart(fig, use_container_width=True)
 
@@ -1829,10 +1835,31 @@ def draw_new_user_analysis(df_data, col_map):
             st.markdown(f"<div style='font-size:{20 if st.session_state.get('presentation_mode', False) else 15}px; font-weight:bold; color:#555; margin-bottom:5px;'>🎯 신규 이용자의 타 프로그램 이용 (Top 10)</div>", unsafe_allow_html=True)
             if not top10_others.empty:
                 fig2 = px.bar(top10_others, x='이용건수', y=project_col, orientation='h', text='이용건수')
-                fig2.update_traces(marker_color=BRAND_RED, texttemplate='<b>%{text:,.0f}건</b>', textposition='inside', textfont_size=18 if st.session_state.get('presentation_mode', False) else 12)
-                fig2.update_layout(yaxis={'categoryorder': 'total ascending'}, yaxis_title="", xaxis_title="")
+                is_pres = st.session_state.get('presentation_mode', False)
+                txt_size = 18 if is_pres else 12
+                # 순위 4위(index 6, ascending 정렬이므로 최상위 = 순위 1) 이하는 outside 배치
+                # top10_others는 ascending=True(아래에서 10위)로 정렬되므로 [-1]이 1위, [0]이 10위
+                n = len(top10_others)
+                def _text_pos(rank_from_bottom):
+                    # rank_from_bottom: 0=최하위(10위), n-1=최상위(1위)
+                    rank = n - rank_from_bottom  # 1위=1, 10위=10
+                    return 'inside' if rank <= 3 else 'outside'
+                fig2.update_traces(
+                    marker_color=BRAND_RED,
+                    texttemplate='<b>%{text:,.0f}건</b>',
+                    textfont_size=txt_size,
+                    textposition=['inside' if (n - i) <= 3 else 'outside' for i in range(n)]
+                )
+                fig2.update_layout(
+                    yaxis={'categoryorder': 'total ascending'},
+                    yaxis_title="", xaxis_title="",
+                    uniformtext_minsize=txt_size, uniformtext_mode=None
+                )
                 fig2 = apply_chart_style(fig2)
-                fig2.update_layout(height=700, margin=dict(t=10, b=20, l=350 if st.session_state.get('presentation_mode', False) else 220, r=20))
+                fig2.update_layout(
+                    height=700,
+                    margin=dict(t=0, b=20, l=350 if is_pres else 220, r=80)
+                )
                 st.plotly_chart(fig2, use_container_width=True)
             else:
                 st.info("타 프로그램 이용 내역이 없습니다.")
