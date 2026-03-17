@@ -1474,7 +1474,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
                             y=pivot_df.index,
                             text_auto=False, 
                             color_continuous_scale=[[0, '#FFF9E1'], [1, BRAND_RED]],
-                            aspect="equal")
+                            aspect="auto")
 
             fig.update_traces(
                 hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>",
@@ -1503,7 +1503,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
             fig.update_layout(
                 xaxis_title="연령대",
                 yaxis_title="프로그램명",
-                height=580,
+                height=400,
                 coloraxis_showscale=False,
                 margin=dict(t=20, b=60, l=10, r=10),
                 annotations=annotations
