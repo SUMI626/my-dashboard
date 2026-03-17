@@ -1998,8 +1998,9 @@ if st.session_state.get("presentation_mode", False):
     disability_col = col_map.get('장애유형', '장애유형')
     if disability_col in df_yeon.columns:
         preferred_order = [
-            '지적장애', '자폐성장애', '뇌병변장애', '지체장애', '청각장애', '시각장애', '정신장애',
-            '언어장애', '신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애', '안면장애', '미등록'
+            '지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애', 
+            '신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애', 
+            '지적장애', '자폐성장애', '정신장애', '미등록', '비장애'
         ]
         actual_disabilities = [str(x) for x in df_yeon[disability_col].dropna().unique() if str(x).strip() != '']
         ordered = [d for d in preferred_order if d in actual_disabilities]
