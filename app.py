@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
@@ -1460,7 +1460,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
                 val = pivot_df.loc[i, col]
                 pct = pivot_pct.loc[i, col]
                 if val > 0:
-                    row_text.append(f"{val:,.0f}명<br>({pct:.1f}%)")
+                    row_text.append(f"{val:,.0f}명 ({pct:.1f}%)")
                 else:
                     row_text.append("")
             text_matrix.append(row_text)
@@ -1494,7 +1494,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
                                 y=y_val,
                                 text=cell_text,
                                 showarrow=False,
-                                font=dict(color=text_color, size=13)
+                                font=dict(color=text_color, size=15)
                             )
                         )
             
@@ -1503,7 +1503,7 @@ def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
             fig.update_layout(
                 xaxis_title="연령대",
                 yaxis_title="프로그램명",
-                height=650,
+                height=700,
                 coloraxis_showscale=False,
                 margin=dict(t=20, b=60, l=10, r=10),
                 annotations=annotations
@@ -1820,7 +1820,7 @@ def draw_new_user_analysis(df_data, col_map):
                 fig1.update_xaxes(dtick=1, labelalias={i: f"{i}월" for i in range(1, 13)}, title="")
                 fig1.update_yaxes(title="")
                 fig1 = apply_chart_style(fig1)
-                fig1.update_layout(height=650, margin=dict(t=10, b=20, l=20, r=20))
+                fig1.update_layout(height=700, margin=dict(t=10, b=20, l=20, r=20))
                 st.plotly_chart(fig1, use_container_width=True)
             else:
                 st.info("월별 신규 이용자 데이터가 없습니다.")
@@ -1832,7 +1832,7 @@ def draw_new_user_analysis(df_data, col_map):
                 fig2.update_traces(marker_color=BRAND_RED, texttemplate='<b>%{text:,.0f}건</b>', textposition='inside', textfont_size=18 if st.session_state.get('presentation_mode', False) else 12)
                 fig2.update_layout(yaxis={'categoryorder': 'total ascending'}, yaxis_title="", xaxis_title="")
                 fig2 = apply_chart_style(fig2)
-                fig2.update_layout(height=650, margin=dict(t=10, b=20, l=350 if st.session_state.get('presentation_mode', False) else 220, r=20))
+                fig2.update_layout(height=700, margin=dict(t=10, b=20, l=350 if st.session_state.get('presentation_mode', False) else 220, r=20))
                 st.plotly_chart(fig2, use_container_width=True)
             else:
                 st.info("타 프로그램 이용 내역이 없습니다.")
