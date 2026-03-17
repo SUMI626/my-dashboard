@@ -1695,82 +1695,79 @@ def draw_cross_analysis(df_yeon, col_map):
                 "</div>",
                 unsafe_allow_html=True
             )
-            return
+        else:
+            # ── 데이터 필터링 ──
+            df_filtered = df_yeon.copy()
+            df_filtered = df_filtered[df_filtered[disability_col].isin(sel_disabilities)]
+            df_filtered = df_filtered[df_filtered[age_col].isin(sel_ages)]
+            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식제공', na=False)]
 
-        # ── 데이터 필터링 ──
-        df_filtered = df_yeon.copy()
-        df_filtered = df_filtered[df_filtered[disability_col].isin(sel_disabilities)]
-        df_filtered = df_filtered[df_filtered[age_col].isin(sel_ages)]
-        df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식제공', na=False)]
+            if df_filtered.empty:
+                st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
+            else:
+                # ── 세부사업별 집계 ──
+                stats = df_filtered.groupby(project_col)[perf_col].sum().reset_index()
+                stats = stats[stats[perf_col] > 0].sort_values(perf_col, ascending=False).copy()
 
-        if df_filtered.empty:
-            st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
-            return
+                if stats.empty:
+                    st.warning("선택한 조건에 해당하는 프로그램 데이터가 없습니다.")
+                else:
+                    total_perf_val = stats[perf_col].sum()
 
-        # ── 세부사업별 집계 ──
-        stats = df_filtered.groupby(project_col)[perf_col].sum().reset_index()
-        stats = stats[stats[perf_col] > 0].sort_values(perf_col, ascending=False).copy()
+                    # ── 상위 5개만 추출 (기타 없음) ──
+                    plot_stats = stats.head(5).copy().reset_index(drop=True)
 
-        if stats.empty:
-            st.warning("선택한 조건에 해당하는 프로그램 데이터가 없습니다.")
-            return
+                    # ── 장애유형별 고정 색상 규칙 ──
+                    RED_GROUP = {'지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애'}
+                    BLUE_GROUP = {'신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애'}
+                    YELLOW_GROUP = {'지적장애', '자폐성장애', '정신장애'}
 
-        total_perf_val = stats[perf_col].sum()
+                    def _pick_group(sel_list):
+                        for t in sel_list:
+                            if t in RED_GROUP: return 'Red'
+                            if t in BLUE_GROUP: return 'Blue'
+                            if t in YELLOW_GROUP: return 'Yellow'
+                        return 'Gray'
 
-        # ── 상위 5개만 추출 (기타 없음) ──
-        plot_stats = stats.head(5).copy().reset_index(drop=True)
+                    main_group = _pick_group(sel_disabilities)
+                    palette = group_palettes[main_group]
 
-        # ── 장애유형별 고정 색상 규칙 ──
-        RED_GROUP = {'지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애'}
-        BLUE_GROUP = {'신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애'}
-        YELLOW_GROUP = {'지적장애', '자폐성장애', '정신장애'}
+                    # ── 고정 색상 적용 ──
+                    colors = [palette[min(i, len(palette)-1)] for i in range(len(plot_stats))]
 
-        def _pick_group(sel_list):
-            for t in sel_list:
-                if t in RED_GROUP: return 'Red'
-                if t in BLUE_GROUP: return 'Blue'
-                if t in YELLOW_GROUP: return 'Yellow'
-            return 'Gray'
+                    # ── 제목 & 필터 요약 (캡션으로 표시 및 불필요 공백 제거) ──
+                    d_label = sel_disabilities[0] if len(sel_disabilities) == 1 else f"{len(sel_disabilities)}개 유형"
+                    a_label = sel_ages[0] if len(sel_ages) == 1 else f"{len(sel_ages)}개 연령대"
+                    chart_title = f"{d_label} × {a_label} · 세부사업 비중 (Top 5)"
 
-        main_group = _pick_group(sel_disabilities)
-        palette = group_palettes[main_group]
+                    st.markdown(f"### {chart_title}")
+                    st.caption(
+                        f"선택된 조건: **{_get_filter_text(sel_disabilities, available_disabilities)}** | "
+                        f"**{_get_filter_text(sel_ages, available_ages)}**  |  합계: **{total_perf_val:,.0f}명**"
+                    )
 
-        # ── 고정 색상 적용 ──
-        colors = [palette[min(i, len(palette)-1)] for i in range(len(plot_stats))]
-
-        # ── 제목 & 필터 요약 (캡션으로 표시 및 불필요 공백 제거) ──
-        d_label = sel_disabilities[0] if len(sel_disabilities) == 1 else f"{len(sel_disabilities)}개 유형"
-        a_label = sel_ages[0] if len(sel_ages) == 1 else f"{len(sel_ages)}개 연령대"
-        chart_title = f"{d_label} × {a_label} · 세부사업 비중 (Top 5)"
-
-        st.markdown(f"### {chart_title}")
-        st.caption(
-            f"선택된 조건: **{_get_filter_text(sel_disabilities, available_disabilities)}** | "
-            f"**{_get_filter_text(sel_ages, available_ages)}**  |  합계: **{total_perf_val:,.0f}명**"
-        )
-
-        # ── 도넛 그래프 ──
-        fig = px.pie(
-            plot_stats,
-            names=project_col,
-            values=perf_col,
-            hole=0.48,
-            color_discrete_sequence=colors
-        )
-        fig.update_traces(
-            texttemplate="<b>%{label}</b><br>%{percent:.1%}",
-            textposition="outside",
-            hovertemplate="<b>%{label}</b><br>연인원: %{value:,.0f}명<br>비중: %{percent:.1%}<extra></extra>"
-        )
-        fig.update_layout(
-            showlegend=True,
-            title=None,
-            legend=dict(orientation="v", x=1.02, xanchor="left", y=0.5, yanchor="middle", font=dict(size=12)),
-            margin=dict(t=10, b=20, l=20, r=20),
-            paper_bgcolor='rgba(0,0,0,0)',
-            height=440
-        )
-        st.plotly_chart(apply_chart_style(fig), use_container_width=True)
+                    # ── 도넛 그래프 ──
+                    fig = px.pie(
+                        plot_stats,
+                        names=project_col,
+                        values=perf_col,
+                        hole=0.48,
+                        color_discrete_sequence=colors
+                    )
+                    fig.update_traces(
+                        texttemplate="<b>%{label}</b><br>%{percent:.1%}",
+                        textposition="outside",
+                        hovertemplate="<b>%{label}</b><br>연인원: %{value:,.0f}명<br>비중: %{percent:.1%}<extra></extra>"
+                    )
+                    fig.update_layout(
+                        showlegend=True,
+                        title=None,
+                        legend=dict(orientation="v", x=1.02, xanchor="left", y=0.5, yanchor="middle", font=dict(size=12)),
+                        margin=dict(t=10, b=20, l=20, r=20),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        height=440
+                    )
+                    st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
 # 연인원 데이터 필터링 (명 단위 & 실적 합산용) - 항상 정의 (프리젠테이션 모드에서도 사용)
 unit_col = col_map.get('단위', '명/건')
