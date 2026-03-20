@@ -1801,7 +1801,7 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
                     )
                     fig.update_layout(
                         showlegend=True,
-                        title=None,
+                        title="",
                         legend=dict(orientation="v", x=1.02, xanchor="left", y=0.5, yanchor="middle", font=dict(size=12)),
                         margin=dict(t=10, b=20, l=20, r=20),
                         paper_bgcolor='rgba(0,0,0,0)',
