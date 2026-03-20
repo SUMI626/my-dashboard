@@ -1756,16 +1756,22 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
                     # ── 고정 색상 적용 ──
                     colors = [palette[min(i, len(palette)-1)] for i in range(len(plot_stats))]
 
-                    # ── 제목 & 필터 요약 (캡션으로 표시 및 불필요 공백 제거) ──
+                    # ── 제목 & 필터 요약 ──
                     d_label = sel_disabilities[0] if len(sel_disabilities) == 1 else f"{len(sel_disabilities)}개 유형"
                     a_label = sel_ages[0] if len(sel_ages) == 1 else f"{len(sel_ages)}개 연령대"
                     chart_title = f"{d_label} × {a_label} · 세부사업 비중 (Top 5)"
 
-                    st.markdown(f"### {chart_title}")
-                    st.caption(
+                    if not presentation_mode:
+                        st.markdown(f"### {chart_title}")
+
+                    filter_caption = (
                         f"선택된 조건: **{_get_filter_text(sel_disabilities, available_disabilities)}** | "
                         f"**{_get_filter_text(sel_ages, available_ages)}**  |  합계: **{total_perf_val:,.0f}명**"
                     )
+                    if presentation_mode:
+                        st.markdown(f"<div style='font-size:13px; color:#555; margin-bottom:4px;'>{filter_caption}</div>", unsafe_allow_html=True)
+                    else:
+                        st.caption(filter_caption)
 
                     # ── 도넛 그래프 ──
                     fig = px.pie(
