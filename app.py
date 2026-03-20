@@ -1764,16 +1764,28 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
                     if not presentation_mode:
                         st.markdown(f"### {chart_title}")
 
-                    filter_caption = (
-                        f"선택된 조건: **{_get_filter_text(sel_disabilities, available_disabilities)}** | "
-                        f"**{_get_filter_text(sel_ages, available_ages)}**  |  합계: **{total_perf_val:,.0f}명**"
-                    )
-                    if presentation_mode:
-                        st.markdown(f"<div style='font-size:13px; color:#555; margin-bottom:4px;'>{filter_caption}</div>", unsafe_allow_html=True)
-                    else:
-                        st.caption(filter_caption)
+                    _d_text = ', '.join(sel_disabilities) if sel_disabilities else '-'
+                    _a_text = '전체선택' if len(sel_ages) == len(available_ages) else ', '.join(sel_ages)
+                    filter_caption_text = f"장애유형: {_d_text} │ 연령대: {_a_text} │ 합계: {total_perf_val:,.0f}명"
 
-                    # ── 도넛 그래프 ──
+                    if presentation_mode:
+                        st.markdown(f"<p style='font-size:20px; font-weight:600; color:#333; margin:4px 0 8px 0;'>{filter_caption_text}</p>", unsafe_allow_html=True)
+                    else:
+                        st.caption(filter_caption_text)
+
+                    # ── 도넛 그래프 (조각별 커스텀 레이블) ──
+                    # 하단 2개 항목(순위 4위~)은 레이블+퍼센트를 한 줄로
+                    _total = plot_stats[perf_col].sum()
+                    _texts = []
+                    for _i, (_idx, _row) in enumerate(plot_stats.iterrows()):
+                        _pct = _row[perf_col] / _total if _total > 0 else 0
+                        if _i >= 3:
+                            _texts.append(f"<b>{_row[project_col]}</b> {_pct:.1%}")
+                        else:
+                            _texts.append(f"<b>{_row[project_col]}</b><br>{_pct:.1%}")
+                    plot_stats = plot_stats.copy()
+                    plot_stats['_display_text'] = _texts
+
                     fig = px.pie(
                         plot_stats,
                         names=project_col,
@@ -1782,7 +1794,8 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
                         color_discrete_sequence=colors
                     )
                     fig.update_traces(
-                        texttemplate="<b>%{label}</b><br>%{percent:.1%}",
+                        text=plot_stats['_display_text'].tolist(),
+                        texttemplate="%{text}",
                         textposition="outside",
                         hovertemplate="<b>%{label}</b><br>연인원: %{value:,.0f}명<br>비중: %{percent:.1%}<extra></extra>"
                     )
