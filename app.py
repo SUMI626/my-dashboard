@@ -1668,6 +1668,11 @@ def draw_cross_analysis(df_yeon, col_map):
 
         with col_filter_d:
             with st.popover("장애유형 선택", use_container_width=True):
+                if "cross_d_all" not in st.session_state:
+                    st.session_state["cross_d_all"] = False
+                    for i, opt in enumerate(available_disabilities):
+                        st.session_state[f"cross_d_{i}"] = (opt in ['지적장애', '자폐성장애'])
+                
                 sel_disabilities = checkbox_group("장애유형 선택", available_disabilities, "cross_d", is_sidebar=False, default_all=False)
 
         # --- 연령대 팝오버 ---
@@ -1675,7 +1680,7 @@ def draw_cross_analysis(df_yeon, col_map):
 
         with col_filter_a:
             with st.popover("연령대 선택", use_container_width=True):
-                sel_ages = checkbox_group("연령대 선택", available_ages, "cross_a", is_sidebar=False, default_all=False)
+                sel_ages = checkbox_group("연령대 선택", available_ages, "cross_a", is_sidebar=False, default_all=True)
 
         # ── 선택된 필터 정보 텍스트 함수 ──
         def _get_filter_text(selected, available):
