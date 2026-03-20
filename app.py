@@ -1705,7 +1705,7 @@ def draw_cross_analysis(df_yeon, col_map):
             df_filtered = df_yeon.copy()
             df_filtered = df_filtered[df_filtered[disability_col].isin(sel_disabilities)]
             df_filtered = df_filtered[df_filtered[age_col].isin(sel_ages)]
-            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식제공', na=False)]
+            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
 
             if df_filtered.empty:
                 st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
@@ -2041,6 +2041,9 @@ if st.session_state.get("presentation_mode", False):
     def _slide_age_disabled_sil():
         draw_age_bar_custom(df_sil_p, is_disabled=True, title_label="실인원")
 
+    def _slide_cross():
+        draw_cross_analysis(df_yeon, col_map)
+
     def _slide_age_nondisabled_sil():
         draw_age_bar_custom(df_sil_p, is_disabled=False, title_label="실인원")
 
@@ -2050,6 +2053,7 @@ if st.session_state.get("presentation_mode", False):
     SLIDES = [
         ("장애유형별 이용 현황 (연인원)",         _slide_disability_yeon),
     ] + DYNAMIC_PREF_SLIDES + [
+        ("장애유형 X 연령대별 선호 프로그램",     _slide_cross),
         ("연령대별 선호 프로그램",  _slide_heatmap_age),
         ("연령대별 현황 – 장애/미등록 (연인원)",   _slide_age_disabled),
         ("연령대별 현황 – 비장애 (연인원)",        _slide_age_nondisabled),
