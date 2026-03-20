@@ -1622,7 +1622,7 @@ def draw_preferred_bar_age(df_yeon, col_map):
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
 # 9. 장애유형 X 연령대별 선호 프로그램 (가로 막대그래프)
-def draw_cross_analysis(df_yeon, col_map):
+def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
     disability_col = col_map.get('장애유형', '장애유형')
     age_col = '_연령대'
     project_col = col_map.get('세부사업', '세부사업')
@@ -1651,44 +1651,44 @@ def draw_cross_analysis(df_yeon, col_map):
     }
 
     with st.container(border=True):
-        st.markdown(
-            f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:8px;'>"
-            "🔀 장애유형 X 연령대별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span>"
-            "</div>",
-            unsafe_allow_html=True
-        )
-        # ── 팝오버 필터 (2열 배치: 장애유형 / 연령대) ──
-        col_filter_d, col_filter_a = st.columns(2)
+        if not presentation_mode:
+            st.markdown(
+                f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:8px;'>"
+                "🔀 장애유형 X 연령대별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span>"
+                "</div>",
+                unsafe_allow_html=True
+            )
 
-        # --- 장애유형 팝오버 ---
+        # --- 장애유형 목록 준비 ---
         available_disabilities = [
             t for t in disability_order if t in df_yeon[disability_col].unique()
         ] + [t for t in sorted(df_yeon[disability_col].dropna().unique())
              if t not in disability_order]
-
-        with col_filter_d:
-            with st.popover("장애유형 선택", use_container_width=True):
-                if "cross_d_all" not in st.session_state:
-                    st.session_state["cross_d_all"] = False
-                    for i, opt in enumerate(available_disabilities):
-                        st.session_state[f"cross_d_{i}"] = (opt in ['지적장애', '자폐성장애'])
-                
-                sel_disabilities = checkbox_group("장애유형 선택", available_disabilities, "cross_d", is_sidebar=False, default_all=False)
-
-        # --- 연령대 팝오버 ---
         available_ages = [a for a in age_order if a in df_yeon[age_col].unique()]
 
-        with col_filter_a:
-            with st.popover("연령대 선택", use_container_width=True):
-                sel_ages = checkbox_group("연령대 선택", available_ages, "cross_a", is_sidebar=False, default_all=True)
-
-        # ── 선택된 필터 정보 텍스트 함수 ──
-        def _get_filter_text(selected, available):
-            if not selected: return "선택된 항목 없음"
-            if len(selected) == len(available): return "전체선택"
-            return f"[{', '.join(selected)}]"
-
-        st.write("")
+        if presentation_mode:
+            # 프리젠테이션 모드: 저장된 세션 스테이트 값을 직접 사용 (UI 없음)
+            if "cross_d_all" not in st.session_state:
+                st.session_state["cross_d_all"] = False
+                for i, opt in enumerate(available_disabilities):
+                    st.session_state[f"cross_d_{i}"] = (opt in ['지적장애', '자폐성장애'])
+            sel_disabilities = [opt for i, opt in enumerate(available_disabilities)
+                                 if st.session_state.get(f"cross_d_{i}", opt in ['지적장애', '자폐성장애'])]
+            sel_ages = available_ages  # 연령대 전체
+        else:
+            # 일반 모드: 팝오버 필터 (2열 배치)
+            col_filter_d, col_filter_a = st.columns(2)
+            with col_filter_d:
+                with st.popover("장애유형 선택", use_container_width=True):
+                    if "cross_d_all" not in st.session_state:
+                        st.session_state["cross_d_all"] = False
+                        for i, opt in enumerate(available_disabilities):
+                            st.session_state[f"cross_d_{i}"] = (opt in ['지적장애', '자폐성장애'])
+                    sel_disabilities = checkbox_group("장애유형 선택", available_disabilities, "cross_d", is_sidebar=False, default_all=False)
+            with col_filter_a:
+                with st.popover("연령대 선택", use_container_width=True):
+                    sel_ages = checkbox_group("연령대 선택", available_ages, "cross_a", is_sidebar=False, default_all=True)
+            st.write("")
 
         # ── 필터 미선택 시 안내 메시지 (그래프 없음) ──
         if not sel_disabilities or not sel_ages:
@@ -1700,6 +1700,22 @@ def draw_cross_analysis(df_yeon, col_map):
                 "</div>",
                 unsafe_allow_html=True
             )
+        # ── 필터 정보 텍스트 함수 ──
+        def _get_filter_text(selected, available):
+            if not selected: return "선택된 항목 없음"
+            if len(selected) == len(available): return "전체선택"
+            return f"[{', '.join(selected)}]"
+
+        if not sel_disabilities or not sel_ages:
+            if not presentation_mode:
+                st.markdown(
+                    "<div style='text-align:center; padding:60px 0; color:#aaa;'>"
+                    "<div style='font-size:26px; margin-bottom:12px;'>&#128269;</div>"
+                    "<div style='font-size:17px; font-weight:bold; color:#888;'>분석할 장애유형과 연령대를 먼저 선택해 주세요.</div>"
+                    "<div style='font-size:13px; margin-top:8px; color:#bbb;'>우측 상단의 버튼에서 조건을 선택하면 분석 결과가 표시됩니다.</div>"
+                    "</div>",
+                    unsafe_allow_html=True
+                )
         else:
             # ── 데이터 필터링 ──
             df_filtered = df_yeon.copy()
@@ -2042,7 +2058,7 @@ if st.session_state.get("presentation_mode", False):
         draw_age_bar_custom(df_sil_p, is_disabled=True, title_label="실인원")
 
     def _slide_cross():
-        draw_cross_analysis(df_yeon, col_map)
+        draw_cross_analysis(df_yeon, col_map, presentation_mode=True)
 
     def _slide_age_nondisabled_sil():
         draw_age_bar_custom(df_sil_p, is_disabled=False, title_label="실인원")
