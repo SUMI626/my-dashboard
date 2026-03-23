@@ -545,7 +545,7 @@ def draw_monthly_trend(df_data):
     else:
         st.info("차트를 그릴 수 있는 월 데이터가 없습니다.")
 
-# 2. 요일별 혼잡도 (막대 차트)
+# 2. 요일별 이용 현황 (막대 차트)
 def draw_daily_crowdedness(df_data):
     if '요일' in df_data.columns:
         day_map = {0:'월', 1:'화', 2:'수', 3:'목', 4:'금', 5:'토', 6:'일'}
@@ -762,20 +762,20 @@ DEFAULT_GSHEETS_URL = "https://docs.google.com/spreadsheets/d/1T8QB5fQaTLzEYlV5m
 
 if not _is_pres:
     with st.container(border=True):
-        st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 설정</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 선택</div>", unsafe_allow_html=True)
         source_col, input_col = st.columns([1, 2])
 
         with source_col:
             source_option = st.radio(
                 "분석할 데이터를 선택해 주세요:",
-                ["구글 스프레드시트(2026실시간)", "엑셀(2025최종/업로드)"],
+                ["2026년 실시간(구글 스프레드시트)", "2025년 최종본(엑셀)"],
                 index=0,
                 label_visibility="collapsed"
             )
             st.session_state["_pres_source_option"] = source_option
 
         with input_col:
-            if source_option == "구글 스프레드시트(2026실시간)":
+            if source_option == "2026년 실시간(구글 스프레드시트)":
                 spreadsheet_url = DEFAULT_GSHEETS_URL if DEFAULT_GSHEETS_URL != "여기에_사용하실_구글스프레드시트_링크를_넣어주세요" else ""
                 data_source = spreadsheet_url
                 st.session_state["_pres_data_source"] = data_source
@@ -792,11 +792,11 @@ if not _is_pres:
                 st.session_state["_pres_data_source"] = data_source
 else:
     # 프리젠테이션 모드: 세션 상태에서 마지막 값 복원
-    source_option = st.session_state.get("_pres_source_option", "구글 스프레드시트(2026실시간)")
+    source_option = st.session_state.get("_pres_source_option", "2026년 실시간(구글 스프레드시트)")
     data_source = st.session_state.get("_pres_data_source", DEFAULT_GSHEETS_URL)
 
 with st.spinner("데이터를 불러오고 처리하는 중입니다..."):
-    if source_option == "엑셀(2025최종/업로드)":
+    if source_option == "2025년 최종본(엑셀)":
         df, col_map = load_data_excel(data_source)
     else:
         # URL 형식 검증
@@ -1951,7 +1951,7 @@ if not st.session_state.get("presentation_mode", False):
         # 6. 익명 참여자 분석
         draw_etc_top10_yeon(df_yeon, col_map)
         
-        # 6. 월별 추이 및 요일별 혼잡도 (나란히 배치)
+        # 6. 월별 추이 및 요일별 이용 현황 (나란히 배치)
         col_trend, col_crowd = st.columns(2)
         with col_trend:
             draw_monthly_trend(df_yeon)
@@ -2093,7 +2093,7 @@ if st.session_state.get("presentation_mode", False):
         ("연령대별 현황 – 장애/미등록 (연인원)",   _slide_age_disabled),
         ("연령대별 현황 – 비장애 (연인원)",        _slide_age_nondisabled),
         ("월별 이용자 추이",                       _slide_monthly),
-        ("요일별 혼잡도",                          _slide_daily),
+        ("요일별 이용 현황",                          _slide_daily),
         ("익명 참여자 분석 (기타)",                 _slide_etc),
         ("신규 이용자 현황",                        _slide_new_user),
         ("장애유형별 이용 현황 (실인원)",            _slide_disability_sil),
