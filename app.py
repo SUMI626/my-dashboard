@@ -2155,7 +2155,7 @@ if st.session_state.get("presentation_mode", False):
                         )
                         fig_p.update_layout(
                             showlegend=True,
-                            legend=dict(x=0.65, xanchor='left', y=0.5, yanchor='middle', font=dict(size=16)),
+                            legend=dict(x=0.65, xanchor='left', y=0.5, yanchor='middle', font=dict(size=18)),
                             margin=dict(t=0, b=0, l=0, r=0), height=500,
                             paper_bgcolor='rgba(0,0,0,0)'
                         )
