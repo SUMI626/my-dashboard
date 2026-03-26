@@ -2063,7 +2063,7 @@ if st.session_state.get("presentation_mode", False):
                     fig.update_layout(
                         xaxis_title="연령대", 
                         yaxis_title="프로그램명", 
-                        height=750,  # 세로가 너무 촘촘하여 답답하다는 의견 수렴하여 높이 대폭 확장
+                        height=900,  # 세로가 너무 촘촘하여 답답하다는 의견 수렴하여 높이 대폭 확장
                         margin=dict(l=50, r=50, t=30, b=30)
                     )
                     fig.update_coloraxes(showscale=False) # 캡처본에 범례(컬러바)가 없었음
