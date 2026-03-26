@@ -5,7 +5,11 @@ import pandas as pd
 import re
 import plotly.express as px
 
-st.set_page_config(page_title="이용자 현황 분석 대시보드", layout="wide")
+st.set_page_config(
+    page_title="이용자 현황 분석 대시보드",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # 가독성을 높이기 위한 전역 CSS 및 브랜드 컬러 적용
 BRAND_RED = "#BE1E2D"
@@ -122,6 +126,33 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
     padding: 0px !important;
 }}
 
+/* ========= 태블릿/모바일 반응형 레이아웃 전용 (데스크톱 원본 유지) ========= */
+/* 아이패드 프로 12.9 (해상도 1366px) 등 대형 태블릿까지 포괄 */
+@media (max-width: 1366px) {{
+    /* 1. 대시보드 메인 - 메트릭 박스 간격 확보 */
+    div[data-testid="stMetric"], .stMetric {{
+        padding: 5px 2px !important;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        padding: 12px 10px !important;
+    }}
+
+    /* 2. 헤더 행 (타이틀+버튼+드롭다운) - 태블릿에서도 가로 한 줄 강제 유지 */
+    [data-testid="stHorizontalBlock"]:first-of-type {{
+        flex-wrap: nowrap !important;
+        flex-direction: row !important;
+    }}
+    [data-testid="stHorizontalBlock"]:first-of-type > div {{
+        min-width: 0 !important;
+        flex-shrink: 1 !important;
+    }}
+    
+    /* 3. 프리젠테이션 모드 - 강제 몰입형 뷰의 하단 잘림 방지를 위해 빈 공간 추가 */
+    body.pres-active [data-testid="stAppViewBlockContainer"] {{
+        padding-bottom: 200px !important; /* 태블릿 하단 잘림 방지용 여유 공간 대폭 확대 */
+    }}
+}}
+
 /* ========= 프리젠테이션 모드 스타일 ========= */
 body.pres-active [data-testid="stSidebar"],
 body.pres-active [data-testid="stSidebarCollapsedControl"] {{
@@ -130,16 +161,13 @@ body.pres-active [data-testid="stSidebarCollapsedControl"] {{
 body.pres-active [data-testid="stHeader"] {{
     display: none !important;
 }}
-/* 데이터소스 설정 컨테이너 숨김 */
 body.pres-active .pres-hide {{
     display: none !important;
 }}
-/* 메인 콘텐츠를 전체 너비로 */
 body.pres-active [data-testid="stMainBlockContainer"] {{
     max-width: 100% !important;
     padding: 0 1rem !important;
 }}
-/* 슬라이드 제목 스타일 */
 .pres-slide-title {{
     font-size: 22px;
     font-weight: 700;
@@ -150,7 +178,6 @@ body.pres-active [data-testid="stMainBlockContainer"] {{
     border-radius: 6px;
     margin-bottom: 12px;
 }}
-/* Fade 애니메이션 */
 @keyframes pressFadeIn {{
     from {{ opacity: 0; transform: translateY(8px); }}
     to   {{ opacity: 1; transform: translateY(0); }}
@@ -159,7 +186,6 @@ body.pres-active [data-testid="stMainBlockContainer"] {{
     animation: pressFadeIn 0.5s ease;
 }}
 /* ========= 프리젠테이션 보기 버튼 스타일 ========= */
-/* type="primary" 버튼의 기본 테마 색상을 무조건 덮어쓰기 위해 상세 선택자 사용 */
 .pres-main-btn-container button,
 .pres-main-btn-container button[data-testid="baseButton-primary"] {{
     background-color: {BRAND_RED} !important;
@@ -178,6 +204,41 @@ body.pres-active [data-testid="stMainBlockContainer"] {{
     background-color: #9a1825 !important;
     background: #9a1825 !important;
 }}
+
+/* ========= 라이트 모드 완전 강제 (태블릿/모바일 다크모드 대응) ========= */
+html, body {{
+    background-color: #ffffff !important;
+    color: #31333f !important;
+}}
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewBlockContainer"],
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"] {{
+    background-color: #ffffff !important;
+    color: #31333f !important;
+}}
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div,
+[data-testid="stSidebarContent"] {{
+    background-color: #f8f9fa !important;
+    color: #31333f !important;
+}}
+[data-testid="stHeader"] {{
+    background-color: #ffffff !important;
+}}
+/* 모든 입력 요소 라이트 모드 강제 */
+.stSelectbox, .stMultiSelect, .stTextInput, .stRadio,
+.stCheckbox, .stFileUploader, .stContainer {{
+    background-color: #ffffff !important;
+    color: #31333f !important;
+}}
+/* 사이드바 텍스트 */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div {{
+    color: #31333f !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -194,7 +255,6 @@ def load_data_gsheets(spreadsheet_url):
     """gspread를 직접 사용하여 구글 스프레드시트 데이터를 로드합니다."""
     try:
         # secrets.toml에서 서비스 계정 정보 읽기
-        # (streamlit-gsheets 전용 키인 'type'은 google oauth2가 인식 못 하므로 제거)
         _raw = dict(st.secrets["connections"]["gsheets"])
         _sa_keys = {
             "type", "project_id", "private_key_id", "private_key",
@@ -202,7 +262,6 @@ def load_data_gsheets(spreadsheet_url):
             "auth_provider_x509_cert_url", "client_x509_cert_url",
         }
         creds_info = {k: v for k, v in _raw.items() if k in _sa_keys}
-        # type 필드가 없으면 service_account로 설정
         creds_info.setdefault("type", "service_account")
         
         scopes = [
@@ -212,14 +271,13 @@ def load_data_gsheets(spreadsheet_url):
         creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         client = gspread.authorize(creds)
         
-        # URL에서 스프레드시트 ID 추출 또는 URL 직접 사용
         spreadsheet = client.open_by_url(spreadsheet_url)
         
         # '취합_자동' 시트 먼저 시도
         try:
             ws = spreadsheet.worksheet("취합_자동")
         except gspread.exceptions.WorksheetNotFound:
-            ws = spreadsheet.get_worksheet(0)  # 첫 번째 시트로 대체
+            ws = spreadsheet.get_worksheet(0)
         
         records = ws.get_all_records()
         df = pd.DataFrame(records)
@@ -230,16 +288,21 @@ def load_data_gsheets(spreadsheet_url):
 def clean_and_map_data(df):
     if df.empty:
         return pd.DataFrame(), "데이터가 비어 있습니다."
-    df.columns = df.columns.astype(str).str.strip()
+    # 모든 컬럼명에서 모든 공백을 제거하여 완벽하게 정제합니다. 
+    # (예: ' 이름' -> '이름', '명 / 건' -> '명/건')
+    df.columns = df.columns.astype(str).str.replace(r'\s+', '', regex=True)
     
     # 필수 컬럼 존재하는지 유연하게 찾기
-    def find_col(keywords):
+    def find_col(keywords, exclude=None):
         for col in df.columns:
+            # exclude 키워드가 있으면 그것이 포함된 컬럼은 건너뜀
+            if exclude and any(e in col for e in exclude):
+                continue
             if any(k in col for k in keywords):
                 return col
         return None
         
-    col_name = find_col(['이름', '성명']) or '이름'
+    col_name = find_col(['이름', '성명'], exclude=['팀']) or '이름'
     col_birth = find_col(['생년월일', '생일', '000000-2']) or '생년월일'
     col_basic = find_col(['기초생활', '수급']) or '기초생활'
     col_disability = find_col(['장애정도', '장애등급']) or '장애정도'
@@ -257,7 +320,7 @@ def clean_and_map_data(df):
     actual_birth_col = '생년월일' if '생년월일' in df.columns else col_birth
     actual_type_col = '장애유형' if '장애유형' in df.columns else col_disability_type
     actual_deg_col = '장애정도' if '장애정도' in df.columns else col_disability
-    actual_team_col = '팀이름' if '팀이름' in df.columns else find_col(['팀', '부서', 'team'])
+    actual_team_col = '팀이름' if '팀이름' in df.columns else col_team
     
     # ----------------------------------------------------
     # ★ 기존의 ffill/bfill 로직 삭제
@@ -473,6 +536,7 @@ def clean_and_map_data(df):
         '장애유형': col_disability_type,
         '실적': col_performance,
         '단위': col_unit,
+        '고유ID': '고유ID',
     }
     return df, columns_map
 
@@ -533,7 +597,7 @@ def draw_monthly_trend(df_data):
         )
         
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (연인원 합계 기준)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (연인원 합계 기준)</div>", unsafe_allow_html=True)
             fig = px.line(monthly_counts, x='월', y='이용자수', markers=True,
                           text='이용자수',
                           hover_data={'증감률_텍스트': True, '이용자수': ':,.0f'})
@@ -554,7 +618,7 @@ def draw_daily_crowdedness(df_data):
         daily_counts = daily_counts.sort_values('요일')
         
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🕒 요일별 이용자 혼잡도</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🕒 요일별 이용 현황</div>", unsafe_allow_html=True)
             fig = px.bar(daily_counts, x='요일명', y='이용자수', 
                          text='이용자수',
                          color='이용자수',
@@ -628,21 +692,18 @@ def draw_disability_donut(df_data, title_suffix):
                     chart_labels.append("")
             
             with st.container(border=True):
-                _pres = st.session_state.get("presentation_mode", False)
-                _label_size = 22 if _pres else 15
-                _legend_fsize = 16 if _pres else 14
                 fig = px.pie(dist_data, names='_LegendLabel', values='인원수', hole=0.45, 
                              title=f"<b>장애유형 분포 ({title_suffix})</b>",
                              color_discrete_sequence=COLOR_PALETTE)
                 fig.update_traces(
-                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=_label_size,
+                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=15,
                     hovertemplate="<b>%{label}</b><br>인원: %{value:,.0f}명<extra></extra>",
                     connector=dict(visible=False)
                 )
                 fig.update_layout(
                     showlegend=True,
-                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="right", x=1.1, font=dict(size=_legend_fsize)),
-                    height=500 if _pres else 550
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="right", x=1.1, font=dict(size=14)),
+                    height=550
                 )
                 st.plotly_chart(apply_chart_style(fig), use_container_width=True)
         else:
@@ -663,30 +724,36 @@ def draw_age_charts(df_data, title_suffix):
                     else:
                         age_data = sub_df.groupby('_연령대').size().reset_index(name='인원수')
                         
-                        if not age_data.empty:
-                            _pres = st.session_state.get("presentation_mode", False)
-                            _bar_txt_size = 22 if _pres else 16
-                            with st.container(border=True):
-                                fig = px.bar(age_data, x='_연령대', y='인원수', 
-                                               title=f"<b>{label} 연령대 ({title_suffix})</b>",
-                                               color_discrete_sequence=[color],
-                                               category_orders={"_연령대": ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상', '정보없음']},
-                                               text='인원수')
-                                fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside', textfont_size=_bar_txt_size)
-                                st.plotly_chart(apply_chart_style(fig), use_container_width=True)
+                    if not age_data.empty:
+                        with st.container(border=True):
+                            fig = px.bar(age_data, x='_연령대', y='인원수', 
+                                           title=f"<b>{label} 연령대 ({title_suffix})</b>",
+                                           color_discrete_sequence=[color],
+                                           category_orders={"_연령대": ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상', '정보없음']},
+                                           text='인원수')
+                            fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside', textfont_size=16)
+                            st.plotly_chart(apply_chart_style(fig), use_container_width=True)
                 else:
                     st.write(f"{label} 연령대 데이터 없음")
 
-# 타이틀 | 프리젠테이션 보기 버튼 | 시간 드롭다운 (나란히 배치 및 CSS 정렬)
+# ================= 프리젠테이션 모드 세션 상태 초기화 =================
+if "presentation_mode" not in st.session_state:
+    st.session_state["presentation_mode"] = False
+if "pres_slide_idx" not in st.session_state:
+    st.session_state["pres_slide_idx"] = 0
+if "pres_interval" not in st.session_state:
+    st.session_state["pres_interval"] = 5
+if "_pres_source_option" not in st.session_state:
+    st.session_state["_pres_source_option"] = "2025년 최종본(엑셀)"
+
+# 타이틀 | 프리젠테이션 보기 버튼 | 시간 드롭다운
 st.markdown("""
 <style>
-/* 1. 상단 타이틀 마진 제거해서 우측 버튼들과 높이 맞춤 */
 .main-title-container h1 {
     margin-top: 0 !important;
     padding-top: 0 !important;
     font-size: 2.2rem !important;
 }
-/* 2. Primary 버튼 색상 무조건 브랜드 레드 강제 (어느 버전에서든 먹히도록 여러 선택자 사용) */
 button[kind="primary"],
 button[data-testid="baseButton-primary"],
 div.stButton button[kind="primary"] {
@@ -697,13 +764,10 @@ div.stButton button[kind="primary"] {
     font-size: 16px !important;
     font-weight: 700 !important;
 }
-/* 버튼 안의 텍스트(ex. p태그 등) 색상도 무조건 흰색으로 강제 */
 button[kind="primary"] *,
 button[data-testid="baseButton-primary"] *,
 div.stButton button[kind="primary"] p,
-div.stButton button[data-testid="baseButton-primary"] p,
-div.stButton button[kind="primary"] div,
-div.stButton button[data-testid="baseButton-primary"] div {
+div.stButton button[data-testid="baseButton-primary"] p {
     color: #FFFFFF !important;
 }
 button[kind="primary"]:hover,
@@ -714,13 +778,6 @@ div.stButton button[kind="primary"]:hover {
     border-color: #9a1825 !important;
     color: #FFFFFF !important;
 }
-button[kind="primary"]:hover *,
-button[data-testid="baseButton-primary"]:hover *,
-div.stButton button[kind="primary"]:hover p,
-div.stButton button[data-testid="baseButton-primary"]:hover p {
-    color: #FFFFFF !important;
-}
-/* 3. 드롭다운 박스 하단 여백 맞춤 */
 div[data-testid="stSelectbox"] {
     margin-top: -5px !important;
 }
@@ -730,7 +787,6 @@ div[data-testid="stSelectbox"] {
 _is_pres = st.session_state.get("presentation_mode", False)
 
 if not _is_pres:
-    # 일반 모드: 제목 | 프리젠테이션 보기 버튼 | 시간 드롭다운 나란히 배치
     _title_col, _btn_col, _interval_col = st.columns([7.7, 1.5, 0.8], vertical_alignment="center")
     with _title_col:
         st.markdown("<div class='main-title-container'><h1>📊 이용자 현황 분석 대시보드</h1></div>", unsafe_allow_html=True)
@@ -748,50 +804,71 @@ if not _is_pres:
             key="pres_interval_select",
             label_visibility="collapsed"
         )
+    # JS: 렌더링 후 첫 번째 가로 행을 강제로 한 줄 유지 (flex-wrap 강제 override)
+    st.markdown("""
+    <script>
+    (function fixHeaderRow() {
+        var attempts = 0;
+        var maxAttempts = 30;
+        function tryFix() {
+            var blocks = window.parent.document.querySelectorAll('[data-testid="stHorizontalBlock"]');
+            if (blocks.length > 0) {
+                var firstBlock = blocks[0];
+                firstBlock.style.setProperty('flex-wrap', 'nowrap', 'important');
+                firstBlock.style.setProperty('flex-direction', 'row', 'important');
+                firstBlock.style.setProperty('align-items', 'center', 'important');
+                var cols = firstBlock.querySelectorAll('[data-testid="stColumn"]');
+                cols.forEach(function(col) {
+                    col.style.setProperty('min-width', '0', 'important');
+                    col.style.setProperty('overflow', 'hidden', 'important');
+                });
+            } else if (attempts < maxAttempts) {
+                attempts++;
+                setTimeout(tryFix, 100);
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', tryFix);
+        } else {
+            tryFix();
+        }
+    })();
+    </script>
+    """, unsafe_allow_html=True)
 else:
-    # 프리젠테이션 모드: 종료 버튼만 오른쪽 상단에 표시 (너비 작게)
     _exit_col = st.columns([9.25, 0.75])[1]
     with _exit_col:
         if st.button("❌ 종료", key="pres_exit_btn", use_container_width=True, type="primary"):
             st.session_state["presentation_mode"] = False
             st.rerun()
 
-
 # ================= 데이터 소스 설정 (메인 화면, 프리젠테이션 모드에서는 숨김) =================
-DEFAULT_GSHEETS_URL = "https://docs.google.com/spreadsheets/d/1T8QB5fQaTLzEYlV5mgphGd-n8pMGHdJzq4OZo-HeJoI/edit"
+DEFAULT_GSHEETS_URL = "https://docs.google.com/spreadsheets/d/1EZ1wmywG0i5Plv1Rxppatyn-mlNwp_uPKIFzdm-TY9c/edit?gid=0#gid=0"
 
 if not _is_pres:
     with st.container(border=True):
         st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 선택</div>", unsafe_allow_html=True)
-        source_col, input_col = st.columns([1, 2])
+        source_option = st.radio(
+            "분석할 데이터를 선택해 주세요:",
+            ["2025년 최종본(엑셀)", "2026년 실시간(구글 스프레드시트)"],
+            index=0,
+            label_visibility="collapsed"
+        )
+        st.session_state["_pres_source_option"] = source_option
 
-        with source_col:
-            source_option = st.radio(
-                "분석할 데이터를 선택해 주세요:",
-                ["2026년 실시간(구글 스프레드시트)", "2025년 최종본(엑셀)"],
-                index=0,
-                label_visibility="collapsed"
-            )
-            st.session_state["_pres_source_option"] = source_option
-
-        with input_col:
-            if source_option == "2026년 실시간(구글 스프레드시트)":
-                spreadsheet_url = DEFAULT_GSHEETS_URL if DEFAULT_GSHEETS_URL != "여기에_사용하실_구글스프레드시트_링크를_넣어주세요" else ""
-                data_source = spreadsheet_url
-                st.session_state["_pres_data_source"] = data_source
-                if not spreadsheet_url:
-                    st.warning("⚠️ 코드 내 DEFAULT_GSHEETS_URL에 주소를 고정해두세요.")
-                    st.stop()
+        if source_option == "2026년 실시간(구글 스프레드시트)":
+            spreadsheet_url = DEFAULT_GSHEETS_URL
+            data_source = spreadsheet_url
+            st.session_state["_pres_data_source"] = data_source
+        else:
+            uploaded_file = st.file_uploader("📂 엑셀 파일 업로드 (.xlsx)", type=['xlsx'], label_visibility="collapsed")
+            if uploaded_file is not None:
+                data_source = uploaded_file
             else:
-                uploaded_file = st.file_uploader("📂 엑셀 파일 업로드 (.xlsx)", type=['xlsx'], label_visibility="collapsed")
-                if uploaded_file is not None:
-                    data_source = uploaded_file
-                else:
-                    data_source = "2025실적데이터.xlsx"
-                    st.info("ℹ️ 업로드된 파일이 없어 '2025실적데이터.xlsx'를 기본으로 사용합니다.")
-                st.session_state["_pres_data_source"] = data_source
+                data_source = "2025실적데이터.xlsx"
+                st.info("ℹ️ 업로드된 파일이 없어 '2025실적데이터.xlsx'를 기본으로 사용합니다.")
+            st.session_state["_pres_data_source"] = data_source
 else:
-    # 프리젠테이션 모드: 세션 상태에서 마지막 값 복원
     source_option = st.session_state.get("_pres_source_option", "2026년 실시간(구글 스프레드시트)")
     data_source = st.session_state.get("_pres_data_source", DEFAULT_GSHEETS_URL)
 
@@ -799,7 +876,6 @@ with st.spinner("데이터를 불러오고 처리하는 중입니다..."):
     if source_option == "2025년 최종본(엑셀)":
         df, col_map = load_data_excel(data_source)
     else:
-        # URL 형식 검증
         if "docs.google.com/sheets" not in str(data_source) and "docs.google.com/spreadsheets" not in str(data_source):
             df, col_map = pd.DataFrame(), "올바른 구글 스프레드시트 URL 형식이 아닙니다."
         else:
@@ -811,15 +887,6 @@ if isinstance(col_map, str) or df.empty:
     st.error(f"⚠️ 데이터 처리 중 오류가 발생했습니다: {error_msg}")
     st.info("💡 엑셀 파일의 컬럼명이나 구글 시트의 탭 이름('취합_자동') 및 공유 권한을 확인해 주세요.")
     st.stop()
-
-# ================= 프리젠테이션 모드 세션 상태 초기화 =================
-if "presentation_mode" not in st.session_state:
-    st.session_state["presentation_mode"] = False
-if "pres_slide_idx" not in st.session_state:
-    st.session_state["pres_slide_idx"] = 0
-if "pres_interval" not in st.session_state:
-    st.session_state["pres_interval"] = 5
-
 
 # ================= 필터 사이드바 =================
 st.sidebar.header("🔍 필터 설정")
@@ -842,10 +909,9 @@ def checkbox_group(label, options, key_prefix, is_sidebar=True, expanded=False, 
 
     # 2. 콜백 함수: 전체 선택 상태가 바뀔 때
     def on_all_change():
-        new_val = st.session_state[all_key]
+        new_val = st.session_state.get(all_key, False)
         for i in range(len(options)):
             st.session_state[f"{key_prefix}_{i}"] = new_val
-        # st.rerun() 제거: 콜백 내부에서는 no-op이기 때문
 
     # 3. 콜백 함수: 개별 항목이 바뀔 때
     def on_item_change():
@@ -939,62 +1005,50 @@ elif '단위' in filtered_df.columns:
     actual_unit_col = '단위'
 
 # ================================================================
-# ★ 신규 집계 로직 (2026-03-13 전면 수정)
-# 사용자 지정 방식으로 연인원/실인원/중복실인원을 계산합니다.
-#
-# 기준 컬럼 (구글 스프레드시트 실제 컬럼명):
-#   A열: 팀이름  |  E열: 이름  |  F열: 생년월일
-#   H열: 장애유형  |  I열: 장애정도  |  L열: 실적  |  M열: 명/건
-#
-# [연인원] M열='명' 인 행의 L열 합산 (기타 포함)
-# [실인원] M열='명' & 이름≠'기타' → [이름+생년월일+장애유형+장애정도] drop_duplicates → len
-# [중복실인원] 위 조건 + 팀이름 추가 → 5개 컬럼 drop_duplicates → len
-#
-# 테스트 케이스:
-#   홍길동(동일인)이 A팀/B팀/C팀에서 총 50회 이용:
-#   연인원=50, 실인원=1, 중복실인원=3  ✓
+# 지표별 집계 방식 (데이터 소스 분리 적용)
 # ================================================================
 
-# --- Step 1. '명' 단위 행 추출 ---
-if actual_unit_col:
-    _cleaned_unit = filtered_df[actual_unit_col].astype(str).str.strip()
-    _is_person = (_cleaned_unit == '명') | (_cleaned_unit == '명(실인원)')
-    df_person = filtered_df[_is_person].copy()
+# --- 공통 전처리: '명' 단위 행 추출 ---
+if actual_unit_col and actual_unit_col in filtered_df.columns:
+    cleaned_unit = filtered_df[actual_unit_col].astype(str).str.strip()
+    is_person = (cleaned_unit == '명') | (cleaned_unit == '명(실인원)')
+    df_person = filtered_df[is_person].copy()
 else:
     df_person = filtered_df.copy()
 
-# --- Step 2. 연인원: '명' 행의 실적 합산 (기타 포함) ---
+# ================= 데이터 소스 통합 집계 로직 =================
+# 1. 연인원: '명' 행의 실적 합산 (기타 포함)
 if performance_col in df_person.columns:
     df_person[performance_col] = pd.to_numeric(df_person[performance_col], errors='coerce').fillna(0)
     총연인원 = df_person[performance_col].sum()
 else:
     총연인원 = len(df_person)
 
-# --- 실인원/중복실인원 기준 컬럼: 실제 스프레드시트 컬럼명 직접 사용 ---
+# --- 실인원/중복실인원 기준 컬럼: 실제 스프레드시트 컬럼명 직접 매핑 ---
 _col_name  = '이름'     if '이름'     in df_person.columns else name_col
 _col_birth = '생년월일' if '생년월일' in df_person.columns else None
 _col_dtype = '장애유형' if '장애유형' in df_person.columns else None
 _col_ddeg  = '장애정도' if '장애정도' in df_person.columns else None
 _col_team  = '팀이름'   if '팀이름'   in df_person.columns else (team_col if team_col in df_person.columns else None)
 
-# 실인원용 4개 컬럼 / 중복실인원용 5개 컬럼 (실제 존재하는 컬럼만 포함)
+# 실인원용 4개 컬럼 / 중복실인원용 5개 컬럼 (존재하는 컬럼만)
 _uniq_cols_4 = [c for c in [_col_name, _col_birth, _col_dtype, _col_ddeg] if c and c in df_person.columns]
 _uniq_cols_5 = [c for c in [_col_name, _col_birth, _col_dtype, _col_ddeg, _col_team] if c and c in df_person.columns]
 
-# --- Step 3. '기타' 이름 제외 ---
+# 2. 실인원 처리를 위해 '기타' 제외
 if _col_name in df_person.columns:
     _is_etc = df_person[_col_name].astype(str).str.contains('기타', na=False)
     _df_for_uniq = df_person[~_is_etc].copy()
 else:
     _df_for_uniq = df_person.copy()
 
-# --- Step 4. 실인원: 4컬럼 기준 drop_duplicates → 고유 행 수 ---
+# 3. 총실인원: 4컬럼 기준 중복 제거 후 남은 행의 개수
 if _uniq_cols_4:
     총실인원 = len(_df_for_uniq[_uniq_cols_4].drop_duplicates())
 else:
     총실인원 = len(_df_for_uniq)
 
-# --- Step 5. 중복실인원: 5컬럼(팀이름 포함) 기준 drop_duplicates → 고유 조합 수 ---
+# 4. 중복실인원: 5컬럼(팀이름 포함) 기준 중복 제거 후 남은 행의 개수
 if _uniq_cols_5:
     중복실인원 = len(_df_for_uniq[_uniq_cols_5].drop_duplicates())
 else:
@@ -1052,7 +1106,44 @@ if not st.session_state.get("presentation_mode", False):
             col4.metric("일평균 이용자", "-")
 
 
+
+
+
 # ================= 연인원 전용 차트 함수 =================
+
+# ================= 연인원 전용 차트 함수 =================
+
+# 1. 장애유형별 이용 현황 (도넛 그래프 / 가로 막대 그래프 전환)
+def draw_disability_bar_yeon(df_yeon, col_map, title_label="연인원"):
+    disability_col = col_map.get('장애유형', '장애유형')
+    perf_col = col_map.get('실적', '실적')
+    
+    if disability_col in df_yeon.columns:
+        if title_label == "실인원":
+            dist_data = df_yeon.groupby(disability_col).size().reset_index(name='실적')
+        else:
+            dist_data = df_yeon.groupby(disability_col)[perf_col].sum().reset_index(name='실적')
+        dist_data = dist_data[dist_data['실적'] > 0]
+        
+        if not dist_data.empty:
+            dist_data = dist_data.sort_values(by='실적', ascending=True).reset_index(drop=True)
+            total_sum = dist_data['실적'].sum()
+            
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 장애유형별 이용 현황 ({title_label}: {total_sum:,.0f}명)</div>", unsafe_allow_html=True)
+                
+                color = CHART_RED if title_label == "실인원" else BRAND_BLUE
+                fig = px.bar(dist_data, x='실적', y=disability_col, orientation='h',
+                             text='실적', color_discrete_sequence=[color])
+                
+                fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside')
+                fig.update_layout(
+                    xaxis_title="인원(명)", 
+                    yaxis_title="장애유형",
+                    margin=dict(t=10, b=10, l=10, r=40),
+                    height=max(400, len(dist_data) * 25 + 100)
+                )
+                st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
 def draw_disability_donut_yeon(df_yeon, col_map, title_label="연인원", target_col=None, custom_title=None, center_label=None):
     disability_col = target_col if target_col else col_map.get('장애유형', '장애유형')
@@ -1093,7 +1184,10 @@ def draw_disability_donut_yeon(df_yeon, col_map, title_label="연인원", target
             
             with st.container(border=True):
                 display_title = custom_title if custom_title else f"♿ 장애유형별 이용 현황 ({title_label}: {total_sum:,.0f}명)"
-                st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>{display_title}</div>", unsafe_allow_html=True)
+                _pres = st.session_state.get("presentation_mode", False)
+                _label_size = 18 if _pres else 13
+                _legend_fsize = 18 if _pres else 12
+                st.markdown(f"<div style='font-size:{24 if _pres else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>{display_title}</div>", unsafe_allow_html=True)
                 fig = px.pie(dist_data, names='_범례', values='실적', hole=0.5, 
                              color_discrete_sequence=colors)
                 
@@ -1102,19 +1196,19 @@ def draw_disability_donut_yeon(df_yeon, col_map, title_label="연인원", target
                 
                 # 사용자 요청 세부 스타일 덮어쓰기
                 fig.update_traces(
-                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=18 if st.session_state.get("presentation_mode", False) else 13,
+                    text=chart_labels, textinfo='text', textposition='outside', textfont_size=_label_size,
                     hovertemplate="<b>%{label}</b><br>실적: %{value:,.0f}<extra></extra>",
-                    domain=dict(x=[0.2, 0.55], y=[0.2, 0.8]) # 도넛 크기 축소 및 위치 조정
+                    domain=dict(x=[0.2, 0.55], y=[0.2, 0.8])
                 )
                 fig.update_layout(
                     showlegend=True,
                     legend=dict(
-                        x=0.65, xanchor='left', # 도넛에 더 밀착 배치
+                        x=0.65, xanchor='left',
                         y=0.5, yanchor='middle',
-                        font=dict(size=18 if st.session_state.get("presentation_mode", False) else 12)
+                        font=dict(size=_legend_fsize)
                     ),
-                    margin=dict(t=0, b=0, l=0, r=0, pad=0), # 상하좌우 여백 및 패딩 완전 제거
-                    height=500, # 물리적으로 높이 축소 (550 -> 500)
+                    margin=dict(t=0, b=0, l=0, r=0, pad=0),
+                    height=500,
                     paper_bgcolor='rgba(0,0,0,0)'
                 )
                 
@@ -1163,27 +1257,19 @@ def draw_age_bar_custom(df_yeon, is_disabled=True, title_label="연인원"):
             fig.update_traces(texttemplate='<b>%{text:,.0f}</b>', textposition='inside', textfont_size=_bar_txt)
             # apply_chart_style 먼저 적용 (전체 스타일 + 축 폰트 크기)
             fig = apply_chart_style(fig)
-            # 이후 차트 전용 설정 (apply_chart_style와 충돌하지 않도록 update_xaxes, update_yaxes 사용)
             fig.update_layout(margin=dict(t=10))
             fig.update_xaxes(title_text="연령대")
-            fig.update_yaxes(title_text="실적 합계", range=[0, max_val * 1.2])  # Y축 범위만 추가 지정
+            fig.update_yaxes(title_text="실적 합계", range=[0, max_val * 1.2])
             st.plotly_chart(fig, use_container_width=True)
 
-
-# 4. 익명 참여자 분석 (Top 5 - 트리맵 방식)
-def draw_etc_top10_yeon(df_yeon, col_map):
+# 4. 익명 참여자 분석 (Top 5 - 트리맵 방식 또는 프레젠테이션 모드 도넛)
+def draw_etc_top10_yeon(df_yeon, col_map, presentation_mode=False):
     name_col = col_map.get('이름', '이름')
     project_col = col_map.get('세부사업', '세부사업')
     team_col = col_map.get('팀', '팀')
     perf_col = col_map.get('실적', '실적')
     
     df_etc = df_yeon[df_yeon[name_col].astype(str).str.contains('기타', na=False)].copy()
-    
-    if df_etc.empty:
-        with st.container(border=True):
-            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석</div>", unsafe_allow_html=True)
-            st.info("'기타' 항목으로 등록된 이용자 데이터가 없습니다.")
-        return
     
     if not df_etc.empty:
         if team_col in df_etc.columns:
@@ -1205,29 +1291,71 @@ def draw_etc_top10_yeon(df_yeon, col_map):
             
             etc_stats['비중'] = (etc_stats['실적'] / total_etc) * 100
             
-            with st.container(border=True): # 연령대 그래프와 똑같은 디자인의 박스
-                # 상단 연령대 차트와 타이틀 스타일 완벽 동기화 (폰트, 굵기, 아이콘)
-                st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석 (연인원: {total_etc:,.0f}명)</div>", unsafe_allow_html=True)
-                
-                # values는 영역 크기 제어용(visual_weight), color는 색상 농도 제어용(실적)
-                fig = px.treemap(etc_stats, path=[project_col], values='visual_weight',
-                                 color='실적',
-                                 color_continuous_scale=[[0, '#FFF9E1'], [1, BRAND_YELLOW]])
-                
-                fig.update_traces(
-                    textinfo="label+value", # 사업명 + 인원수 표시
-                    hovertemplate="<b>%{label}</b><br>실적: %{value:,.0f}명<extra></extra>",
-                    textfont=dict(color="#333333", size=18 if st.session_state.get("presentation_mode", False) else 12, family="Arial Black"), # 12px 고정
-                    marker=dict(line=dict(width=1, color='white'))
-                )
-                fig.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)', # 회색 배경 완전 제거
-                    plot_bgcolor='rgba(0,0,0,0)',  # 회색 배경 완전 제거
-                    margin=dict(t=0, b=0, l=0, r=0), # 여백 0으로 밀착
-                    height=150 # 슬림한 가로 바 형태
-                )
-                fig.update_coloraxes(showscale=False)
-                st.plotly_chart(fig, use_container_width=True)
+            if presentation_mode:
+                # --- 프레젠테이션 모드 전용 로직: 대형 도넛 차트 ---
+                with st.container(border=True):
+                    st.markdown(
+                        f"<div style='font-size:24px;font-weight:bold;color:{BRAND_GRAY}'>"
+                        f"⭐ <span style='color:{BRAND_GRAY} !important;'>기타(익명)</span> 선호 프로그램 (Top 5) "
+                        f"<span style='font-size:16px;color:#888 !important;'>*연인원: {total_etc:,.0f}명</span></div>",
+                        unsafe_allow_html=True
+                    )
+                    
+                    colors_p = [BRAND_GRAY, CHART_GRAY, "#BDBDBD", "#D6D6D6", "#EBEBEB", "#999999"]
+                    
+                    chart_labels_p = []
+                    legend_texts = []
+                    for i, (_, r) in enumerate(etc_stats.iterrows()):
+                        chart_labels_p.append(f"<b>{r[project_col]}</b><br>{r['비중']:.1f}%")
+                        legend_texts.append(f"{r[project_col]} {r['실적']:,.0f}명 ({r['비중']:.1f}%)")
+                    etc_stats['_legend'] = legend_texts
+                    
+                    fig_p = px.pie(etc_stats, names='_legend', values='visual_weight', hole=0.48,
+                                  color_discrete_sequence=colors_p, custom_data=['실적', project_col])
+                    
+                    fig_p.update_traces(
+                        text=chart_labels_p, textinfo='text', textposition='outside',
+                        textfont_size=17,
+                        hovertemplate="<b>%{customdata[1]}</b><br>실적: %{customdata[0]:,.0f}명 (%{percent:.1%})<extra></extra>",
+                        domain=dict(x=[0.1, 0.55], y=[0.1, 0.9])
+                    )
+                    fig_p.update_layout(
+                        showlegend=True,
+                        legend=dict(x=0.65, xanchor='left', y=0.5, yanchor='middle', font=dict(size=16)),
+                        margin=dict(t=0, b=0, l=0, r=0), height=500,
+                        paper_bgcolor='rgba(0,0,0,0)'
+                    )
+                    st.plotly_chart(apply_chart_style(fig_p), use_container_width=True)
+            else:
+                # --- 일반 대시보드 모드: 슬림 트리맵 ---
+                with st.container(border=True): # 연령대 그래프와 똑같은 디자인의 박스
+                    # 상단 연령대 차트와 타이틀 스타일 완벽 동기화 (폰트, 굵기, 아이콘)
+                    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석 (연인원: {total_etc:,.0f}명)</div>", unsafe_allow_html=True)
+                    
+                    # values는 영역 크기 제어용(visual_weight), color는 색상 농도 제어용(실적)
+                    fig = px.treemap(etc_stats, path=[project_col], values='visual_weight',
+                                     color='실적',
+                                     custom_data=['실적'],
+                                     color_continuous_scale=[[0, '#FFF9E1'], [1, BRAND_YELLOW]])
+                    
+                    fig.update_traces(
+                        texttemplate="<b>%{label}</b><br>%{customdata[0]:,.0f}", # 사업명 + 실제 실적 인원수 표시
+                        hovertemplate="<b>%{label}</b><br>실적: %{customdata[0]:,.0f}명<extra></extra>",
+                        textfont=dict(color="#333333", size=12, family="Arial Black"), # 12px 고정
+                        marker=dict(line=dict(width=1, color='white'))
+                    )
+                    fig.update_layout(
+                        paper_bgcolor='rgba(0,0,0,0)', # 회색 배경 완전 제거
+                        plot_bgcolor='rgba(0,0,0,0)',  # 회색 배경 완전 제거
+                        margin=dict(t=0, b=0, l=0, r=0), # 여백 0으로 밀착
+                        height=150 # 슬림한 가로 바 형태
+                    )
+                    fig.update_coloraxes(showscale=False)
+                    st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("'기타' 성명으로 등록된 이용 내역이 없습니다. (세부사업 조회 실패)")
+    else:
+        st.info("'기타' 성명으로 등록된 데이터가 없습니다.")
 
 # 7. 장애유형별 선호 프로그램 (가로 막대그래프)
 def draw_preferred_bar_disability(df_yeon, col_map):
@@ -1339,189 +1467,8 @@ def draw_preferred_bar_disability(df_yeon, col_map):
             fig.update_xaxes(range=[0, 100])
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
-# 7-2. 장애유형별 선호 프로그램 (단일 유형 도넛 차트 - 프리젠테이션용)
-def draw_preferred_donut_disability_presentation(df_yeon, col_map, target_disability):
-    group_col = col_map.get('장애유형', '장애유형')
-    project_col = col_map.get('세부사업', '세부사업')
-    perf_col = col_map.get('실적', '실적')
-    
-    group_map = {
-        '지체장애': 'Red', '뇌병변장애': 'Red', '시각장애': 'Red', '청각장애': 'Red', '언어장애': 'Red',
-        '신장장애': 'Blue', '심장장애': 'Blue', '간장애': 'Blue', '장루요루장애': 'Blue', '뇌전증장애': 'Blue',
-        '지적장애': 'Yellow', '자폐성장애': 'Yellow', '정신장애': 'Yellow',
-        '미등록': 'Gray', '비장애': 'Gray'
-    }
-
-    group_palettes = {
-        'Red': [BRAND_RED, "#D65C69", "#E98C8E", "#F2B0B2", "#F9D4D5", "#FCEEEF"],
-        'Blue': [BRAND_BLUE, CHART_BLUE, "#A4CAD2", "#C6E0E6", "#E3EFF2", "#F0F7F9"],
-        'Yellow': [BRAND_YELLOW, CHART_YELLOW, "#F9D59B", "#FBE6C4", "#FDF3E2", "#FEF9F0"],
-        'Gray': [BRAND_GRAY, CHART_GRAY, "#BDBDBD", "#D6D6D6", "#EBEBEB", "#F5F5F5"]
-    }
-
-    if group_col in df_yeon.columns and project_col in df_yeon.columns:
-        # 데이터 필터링
-        df_filtered = df_yeon[df_yeon[group_col] == target_disability].copy()
-        df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
-        
-        if df_filtered.empty:
-            st.info(f"{target_disability}의 프로그램 이용 내역이 없습니다.")
-            return
-
-        stats = df_filtered.groupby([project_col])[perf_col].sum().reset_index()
-        top_stats = stats.sort_values(perf_col, ascending=False).head(5).copy()
-        
-        if top_stats.empty:
-            st.info(f"{target_disability}의 프로그램 이용 내역이 없습니다.")
-            return
-
-        total_sum = top_stats[perf_col].sum()
-        top_stats['_범례'] = top_stats.apply(
-            lambda r: f"{r[project_col]} {r[perf_col]:,.0f}명 ({(r[perf_col]/total_sum)*100:.1f}%)" if total_sum > 0 else f"{r[project_col]} {r[perf_col]:,.0f}명 (0.0%)", axis=1
-        )
-        
-        chart_labels = []
-        for i, row in top_stats.iterrows():
-            perc = (row[perf_col] / total_sum) * 100 if total_sum > 0 else 0
-            if perc >= 5: # 5% 이상만 텍스트 표시
-                chart_labels.append(f"<b>{row[project_col]}</b><br>{perc:.1f}%")
-            else:
-                chart_labels.append("")
-
-        # 컬러 매핑
-        grp = group_map.get(target_disability, 'Gray')
-        palette = group_palettes[grp]
-        colors = [palette[i % len(palette)] for i in range(len(top_stats))]
-
-        with st.container(border=True):
-            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>⭐ <span class='disability-highlight'>{target_disability}</span> 선호 프로그램 (Top 5) <span style='font-size:14px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
-            fig = px.pie(top_stats, names='_범례', values=perf_col, hole=0.5, 
-                         color_discrete_sequence=colors)
-            
-            fig = apply_chart_style(fig)
-            
-            fig.update_traces(
-                text=chart_labels, textinfo='text', textposition='outside', textfont_size=18,
-                hovertemplate="<b>%{label}</b><br>실적: %{value:,.0f}<extra></extra>",
-                domain=dict(x=[0.1, 0.55], y=[0.1, 0.9])
-            )
-            fig.update_layout(
-                showlegend=True,
-                legend=dict(
-                    x=0.65, xanchor='left',
-                    y=0.5, yanchor='middle',
-                    font=dict(size=18)
-                ),
-                margin=dict(t=0, b=0, l=0, r=0, pad=0),
-                height=500,
-                paper_bgcolor='rgba(0,0,0,0)'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-
-# 8. 연령대별 선호 프로그램 (히트맵 - 프리젠테이션용 제안)
-def draw_preferred_heatmap_age_presentation(df_yeon, col_map):
-    project_col = col_map.get('세부사업', '세부사업')
-    perf_col = col_map.get('실적', '실적')
-    group_col = '_연령대'
-    
-    age_order = ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상']
-
-    if group_col in df_yeon.columns and project_col in df_yeon.columns:
-        df_filtered = df_yeon[df_yeon[group_col].isin(age_order)].copy()
-        df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
-        
-        stats = df_filtered.groupby([group_col, project_col])[perf_col].sum().reset_index()
-        
-        # 각 연령대별 상위 3개 추출
-        top_stats = stats.sort_values([group_col, perf_col], ascending=[True, False]).groupby(group_col).head(3).copy()
-        
-        if top_stats.empty:
-            st.info("연령대별 선호 프로그램 내역이 없습니다.")
-            return
-
-        # Pivot to create heatmap format
-        pivot_df = top_stats.pivot(index=project_col, columns=group_col, values=perf_col).fillna(0)
-        
-        # Ensure age columns are ordered correctly
-        existing_cols = [col for col in age_order if col in pivot_df.columns]
-        pivot_df = pivot_df[existing_cols]
-
-        # Calculate percentages per age group
-        pivot_pct = pivot_df.transpose().apply(lambda x: x / x.sum() * 100 if x.sum() != 0 else x, axis=1).transpose()
-        
-        # Sort rows by total sum to have popular ones at top
-        pivot_df["_Total"] = pivot_df.sum(axis=1)
-        pivot_df = pivot_df.sort_values("_Total", ascending=True)
-        pivot_df = pivot_df.drop(columns=["_Total"])
-        
-        # Re-sort percentages to match
-        pivot_pct = pivot_pct.loc[pivot_df.index]
-
-        # Prepare annotations (text to display inside cells)
-        text_matrix = []
-        for i, row in pivot_df.iterrows():
-            row_text = []
-            for col in pivot_df.columns:
-                val = pivot_df.loc[i, col]
-                pct = pivot_pct.loc[i, col]
-                if val > 0:
-                    row_text.append(f"{val:,.0f}명 ({pct:.1f}%)")
-                else:
-                    row_text.append("")
-            text_matrix.append(row_text)
-
-        with st.container(border=True):
-            
-            # Using red color scale
-            fig = px.imshow(pivot_pct,
-                            labels=dict(x="연령대", y="세부사업", color="선호 비중(%)"),
-                            x=pivot_df.columns,
-                            y=pivot_df.index,
-                            text_auto=False, 
-                            color_continuous_scale=[[0, '#FFF9E1'], [1, BRAND_RED]],
-                            aspect="auto")
-
-            fig.update_traces(
-                hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>",
-            )
-
-            # Add Text Annotations
-            annotations = []
-            for y_idx, y_val in enumerate(pivot_df.index):
-                for x_idx, x_val in enumerate(pivot_df.columns):
-                    cell_text = text_matrix[y_idx][x_idx]
-                    if cell_text:
-                        # For darker colors (higher pct), use white text. For lighter use dark gray.
-                        text_color = "white" if pivot_pct.loc[y_val, x_val] > 30 else "#333333"
-                        annotations.append(
-                            dict(
-                                x=x_val,
-                                y=y_val,
-                                text=cell_text,
-                                showarrow=False,
-                                font=dict(color=text_color, size=17)
-                            )
-                        )
-            
-            fig = apply_chart_style(fig)
-
-            fig.update_layout(
-                xaxis_title="연령대",
-                yaxis_title="프로그램명",
-                height=700,
-                coloraxis_showscale=False,
-                margin=dict(t=20, b=60, l=10, r=10),
-                annotations=annotations
-            )
-            # tickfont 및 title_font를 apply_chart_style 기준(18px)에 맞춰 덮어쓰기
-            fig.update_yaxes(tickfont=dict(size=17), title_font=dict(size=18, color="#31333F"))
-            fig.update_xaxes(tickfont=dict(size=17), title_font=dict(size=18, color="#31333F"), side="bottom")
-
-            st.plotly_chart(fig, use_container_width=True)
-
 # 8. 연령대별 선호 프로그램 (가로 막대그래프)
-def draw_preferred_bar_age(df_yeon, col_map):
+def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
     project_col = col_map.get('세부사업', '세부사업')
     perf_col = col_map.get('실적', '실적')
     group_col = '_연령대'
@@ -1546,14 +1493,30 @@ def draw_preferred_bar_age(df_yeon, col_map):
     if group_col in df_yeon.columns and project_col in df_yeon.columns:
         with st.container(border=True):
             # 2. 제목 및 로컬 팝오버 필터
-            col_title, col_filter = st.columns([3, 1])
-            with col_title:
-                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>👥 연령대별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
-            
-            with col_filter:
+            if not presentation_mode:
+                col_title, col_filter = st.columns([3, 1])
+                with col_title:
+                    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>👥 연령대별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
+                
+                with col_filter:
+                    available_ages = [a for a in age_order if a in df_yeon[group_col].unique()]
+                    with st.popover("분석할 연령대 선택", use_container_width=True):
+                        actual_selection = checkbox_group("연령대 선택", available_ages, f"pref_age_{group_col}", is_sidebar=False)
+            else:
+                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px; margin-bottom:15px;'>👥 연령대별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
                 available_ages = [a for a in age_order if a in df_yeon[group_col].unique()]
-                with st.popover("분석할 연령대 선택", use_container_width=True):
-                    actual_selection = checkbox_group("연령대 선택", available_ages, f"pref_age_{group_col}", is_sidebar=False)
+                
+                # 프리젠테이션이 시작될 때 현재 session state를 따르거나, 없으면 전체 선택 반환
+                actual_selection = []
+                all_key = f"pref_age_{group_col}_all"
+                if st.session_state.get(all_key, True):
+                    actual_selection = available_ages
+                else:
+                    for i, opt in enumerate(available_ages):
+                        if st.session_state.get(f"pref_age_{group_col}_{i}", False):
+                            actual_selection.append(opt)
+                if not actual_selection:
+                    actual_selection = available_ages
             
             if not actual_selection:
                 st.info("연령대를 최소 하나 이상 선택해 주세요.")
@@ -1659,24 +1622,29 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
                 unsafe_allow_html=True
             )
 
-        # --- 장애유형 목록 준비 ---
+        # 항목 목록 준비
         available_disabilities = [
             t for t in disability_order if t in df_yeon[disability_col].unique()
         ] + [t for t in sorted(df_yeon[disability_col].dropna().unique())
              if t not in disability_order]
         available_ages = [a for a in age_order if a in df_yeon[age_col].unique()]
 
+        # 필터 정보 텍스트 함수
+        def _get_filter_text(selected, available):
+            if not selected: return "선택된 항목 없음"
+            if len(selected) == len(available): return "전체선택"
+            return f"[{', '.join(selected)}]"
+
         if presentation_mode:
-            # 프리젠테이션 모드: 저장된 세션 스테이트 값을 직접 사용 (UI 없음)
+            # 프리젠테이션 모드: UI 없이 세션 스테이트에서 직접 로드
             if "cross_d_all" not in st.session_state:
                 st.session_state["cross_d_all"] = False
                 for i, opt in enumerate(available_disabilities):
                     st.session_state[f"cross_d_{i}"] = (opt in ['지적장애', '자폐성장애'])
             sel_disabilities = [opt for i, opt in enumerate(available_disabilities)
                                  if st.session_state.get(f"cross_d_{i}", opt in ['지적장애', '자폐성장애'])]
-            sel_ages = available_ages  # 연령대 전체
+            sel_ages = available_ages
         else:
-            # 일반 모드: 팝오버 필터 (2열 배치)
             col_filter_d, col_filter_a = st.columns(2)
             with col_filter_d:
                 with st.popover("장애유형 선택", use_container_width=True):
@@ -1688,23 +1656,6 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
             with col_filter_a:
                 with st.popover("연령대 선택", use_container_width=True):
                     sel_ages = checkbox_group("연령대 선택", available_ages, "cross_a", is_sidebar=False, default_all=True)
-            st.write("")
-
-        # ── 필터 미선택 시 안내 메시지 (그래프 없음) ──
-        if not sel_disabilities or not sel_ages:
-            st.markdown(
-                "<div style='text-align:center; padding:60px 0; color:#aaa;'>"
-                "<div style='font-size:26px; margin-bottom:12px;'>&#128269;</div>"
-                "<div style='font-size:17px; font-weight:bold; color:#888;'>분석할 장애유형과 연령대를 먼저 선택해 주세요.</div>"
-                "<div style='font-size:13px; margin-top:8px; color:#bbb;'>우측 상단의 버튼에서 조건을 선택하면 분석 결과가 표시됩니다.</div>"
-                "</div>",
-                unsafe_allow_html=True
-            )
-        # ── 필터 정보 텍스트 함수 ──
-        def _get_filter_text(selected, available):
-            if not selected: return "선택된 항목 없음"
-            if len(selected) == len(available): return "전체선택"
-            return f"[{', '.join(selected)}]"
 
         if not sel_disabilities or not sel_ages:
             if not presentation_mode:
@@ -1716,107 +1667,100 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
                     "</div>",
                     unsafe_allow_html=True
                 )
+            return
+
+        # ── 데이터 필터링 ──
+        df_filtered = df_yeon.copy()
+        df_filtered = df_filtered[df_filtered[disability_col].isin(sel_disabilities)]
+        df_filtered = df_filtered[df_filtered[age_col].isin(sel_ages)]
+        df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
+
+        if df_filtered.empty:
+            st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
+            return
+
+        # ── 세부사업별 집계 ──
+        stats = df_filtered.groupby(project_col)[perf_col].sum().reset_index()
+        stats = stats[stats[perf_col] > 0].sort_values(perf_col, ascending=False).copy()
+
+        if stats.empty:
+            st.warning("선택한 조건에 해당하는 프로그램 데이터가 없습니다.")
+            return
+
+        total_perf_val = stats[perf_col].sum()
+
+        # ── 상위 5개만 추출 (기타 없음) ──
+        plot_stats = stats.head(5).copy().reset_index(drop=True)
+
+        # ── 장애유형별 고정 색상 규칙 ──
+        RED_GROUP = {'지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애'}
+        BLUE_GROUP = {'신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애'}
+        YELLOW_GROUP = {'지적장애', '자폐성장애', '정신장애'}
+
+        def _pick_group(sel_list):
+            for t in sel_list:
+                if t in RED_GROUP: return 'Red'
+                if t in BLUE_GROUP: return 'Blue'
+                if t in YELLOW_GROUP: return 'Yellow'
+            return 'Gray'
+
+        main_group = _pick_group(sel_disabilities)
+        palette = group_palettes[main_group]
+
+        # ── 고정 색상 적용 ──
+        colors = [palette[min(i, len(palette)-1)] for i in range(len(plot_stats))]
+
+        # ── 제목 & 필터 요약 ──
+        d_label = sel_disabilities[0] if len(sel_disabilities) == 1 else f"{len(sel_disabilities)}개 유형"
+        a_label = sel_ages[0] if len(sel_ages) == 1 else f"{len(sel_ages)}개 연령대"
+        chart_title = f"{d_label} × {a_label} · 세부사업 비중 (Top 5)"
+
+        if not presentation_mode:
+            st.markdown(f"### {chart_title}")
+
+        d_text = ', '.join(sel_disabilities) if sel_disabilities else '-'
+        a_text = '전체선택' if len(sel_ages) == len(available_ages) else ', '.join(sel_ages)
+        filter_caption_text = f"장애유형: {d_text} │ 연령대: {a_text} │ 합계: {total_perf_val:,.0f}명"
+
+        if presentation_mode:
+            st.markdown(f"<p style='font-size:20px; font-weight:600; color:#333; margin:4px 0 8px 0;'>{filter_caption_text}</p>", unsafe_allow_html=True)
         else:
-            # ── 데이터 필터링 ──
-            df_filtered = df_yeon.copy()
-            df_filtered = df_filtered[df_filtered[disability_col].isin(sel_disabilities)]
-            df_filtered = df_filtered[df_filtered[age_col].isin(sel_ages)]
-            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
+            st.caption(filter_caption_text)
 
-            if df_filtered.empty:
-                st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
-            else:
-                # ── 세부사업별 집계 ──
-                stats = df_filtered.groupby(project_col)[perf_col].sum().reset_index()
-                stats = stats[stats[perf_col] > 0].sort_values(perf_col, ascending=False).copy()
+        # ── 도넛 그래프 ──
+        fig = px.pie(
+            plot_stats,
+            names=project_col,
+            values=perf_col,
+            hole=0.48,
+            color_discrete_sequence=colors
+        )
+        
+        fig = apply_chart_style(fig)
+        
+        fig.update_traces(
+            texttemplate="<b>%{label}</b><br>%{percent:.1%}",
+            textposition="outside",
+            hovertemplate="<b>%{label}</b><br>연인원: %{value:,.0f}명<br>비중: %{percent:.1%}<extra></extra>",
+            domain=dict(x=[0.1, 0.55], y=[0.1, 0.9])
+        )
+        fig.update_layout(
+            showlegend=True,
+            title="",
+            legend=dict(orientation="v", x=0.65, xanchor="left", y=0.5, yanchor="middle", font=dict(size=18 if presentation_mode else 12)),
+            margin=dict(t=0, b=0, l=0, r=0, pad=0),
+            paper_bgcolor='rgba(0,0,0,0)',
+            height=500
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-                if stats.empty:
-                    st.warning("선택한 조건에 해당하는 프로그램 데이터가 없습니다.")
-                else:
-                    total_perf_val = stats[perf_col].sum()
+# ================= 차트 영역: 두 개의 탭으로 구성 =================
+# tab1, tab2 = st.tabs(["📊 연인원 현황", "👤 실인원 현황"]) # 중복 탭 제거
 
-                    # ── 상위 5개만 추출 (기타 없음) ──
-                    plot_stats = stats.head(5).copy().reset_index(drop=True)
-
-                    # ── 장애유형별 고정 색상 규칙 ──
-                    RED_GROUP = {'지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애'}
-                    BLUE_GROUP = {'신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애'}
-                    YELLOW_GROUP = {'지적장애', '자폐성장애', '정신장애'}
-
-                    def _pick_group(sel_list):
-                        for t in sel_list:
-                            if t in RED_GROUP: return 'Red'
-                            if t in BLUE_GROUP: return 'Blue'
-                            if t in YELLOW_GROUP: return 'Yellow'
-                        return 'Gray'
-
-                    main_group = _pick_group(sel_disabilities)
-                    palette = group_palettes[main_group]
-
-                    # ── 고정 색상 적용 ──
-                    colors = [palette[min(i, len(palette)-1)] for i in range(len(plot_stats))]
-
-                    # ── 제목 & 필터 요약 ──
-                    d_label = sel_disabilities[0] if len(sel_disabilities) == 1 else f"{len(sel_disabilities)}개 유형"
-                    a_label = sel_ages[0] if len(sel_ages) == 1 else f"{len(sel_ages)}개 연령대"
-                    chart_title = f"{d_label} × {a_label} · 세부사업 비중 (Top 5)"
-
-                    if not presentation_mode:
-                        st.markdown(f"### {chart_title}")
-
-                    _d_text = ', '.join(sel_disabilities) if sel_disabilities else '-'
-                    _a_text = '전체선택' if len(sel_ages) == len(available_ages) else ', '.join(sel_ages)
-                    filter_caption_text = f"장애유형: {_d_text} │ 연령대: {_a_text} │ 합계: {total_perf_val:,.0f}명"
-
-                    if presentation_mode:
-                        st.markdown(f"<p style='font-size:20px; font-weight:600; color:#333; margin:4px 0 8px 0;'>{filter_caption_text}</p>", unsafe_allow_html=True)
-                    else:
-                        st.caption(filter_caption_text)
-
-                    # ── 도넛 그래프 (조각별 커스텀 레이블) ──
-                    # 하단 2개 항목(순위 4위~)은 레이블+퍼센트를 한 줄로
-                    _total = plot_stats[perf_col].sum()
-                    _texts = []
-                    for _i, (_idx, _row) in enumerate(plot_stats.iterrows()):
-                        _pct = _row[perf_col] / _total if _total > 0 else 0
-                        if _i >= 3:
-                            _texts.append(f"<b>{_row[project_col]}</b> {_pct:.1%}")
-                        else:
-                            _texts.append(f"<b>{_row[project_col]}</b><br>{_pct:.1%}")
-                    plot_stats = plot_stats.copy()
-                    plot_stats['_display_text'] = _texts
-
-                    fig = px.pie(
-                        plot_stats,
-                        names=project_col,
-                        values=perf_col,
-                        hole=0.48,
-                        color_discrete_sequence=colors
-                    )
-                    fig.update_traces(
-                        text=plot_stats['_display_text'].tolist(),
-                        texttemplate="%{text}",
-                        textposition="outside",
-                        hovertemplate="<b>%{label}</b><br>연인원: %{value:,.0f}명<br>비중: %{percent:.1%}<extra></extra>"
-                    )
-                    fig.update_layout(
-                        showlegend=True,
-                        title="",
-                        legend=dict(orientation="v", x=1.02, xanchor="left", y=0.5, yanchor="middle", font=dict(size=12)),
-                        margin=dict(t=10, b=20, l=20, r=20),
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        height=440
-                    )
-                    st.plotly_chart(apply_chart_style(fig), use_container_width=True)
-
-# 연인원 데이터 필터링 (명 단위 & 실적 합산용) - 항상 정의 (프리젠테이션 모드에서도 사용)
+# 연인원 데이터 필터링 (명 단위 & 실적 합산용)
 unit_col = col_map.get('단위', '명/건')
 is_person_all = filtered_df[unit_col].astype(str).str.strip() == '명'
 df_yeon = filtered_df[is_person_all].copy()
-
-# ================= 차트 영역: 두 개의 탭으로 구성 (프리젠테이션 모드 OFF 시에만 표시) =================
-if not st.session_state.get("presentation_mode", False):
-    tab1, tab2 = st.tabs(["📊 연인원 현황", "👤 실인원 현황"])
 
 # 5. 신규 이용자 현황 (접수상담 기준)
 def draw_new_user_analysis(df_data, col_map):
@@ -1863,40 +1807,27 @@ def draw_new_user_analysis(df_data, col_map):
                 fig1.update_xaxes(dtick=1, labelalias={i: f"{i}월" for i in range(1, 13)}, title="")
                 fig1.update_yaxes(title="")
                 fig1 = apply_chart_style(fig1)
-                fig1.update_layout(height=620, margin=dict(t=10, b=20, l=20, r=20))
+                fig1.update_layout(height=400, margin=dict(t=10, b=20, l=20, r=20))
                 st.plotly_chart(fig1, use_container_width=True)
             else:
                 st.info("월별 신규 이용자 데이터가 없습니다.")
                 
         with col2:
-            st.markdown(f"<div style='font-size:{20 if st.session_state.get('presentation_mode', False) else 15}px; font-weight:bold; color:#555; margin-bottom:5px;'>🎯 신규 이용자의 타 프로그램 이용 (Top 10)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:15px; font-weight:bold; color:#555; margin-bottom:5px;'>🎯 신규 이용자의 타 프로그램 이용 (Top 10)</div>", unsafe_allow_html=True)
             if not top10_others.empty:
-                fig2 = px.bar(top10_others, x='이용건수', y=project_col, orientation='h', text='이용건수')
-                is_pres = st.session_state.get('presentation_mode', False)
-                txt_size = 18 if is_pres else 12
-                # 순위 4위(index 6, ascending 정렬이므로 최상위 = 순위 1) 이하는 outside 배치
-                # top10_others는 ascending=True(아래에서 10위)로 정렬되므로 [-1]이 1위, [0]이 10위
                 n = len(top10_others)
-                def _text_pos(rank_from_bottom):
-                    # rank_from_bottom: 0=최하위(10위), n-1=최상위(1위)
-                    rank = n - rank_from_bottom  # 1위=1, 10위=10
-                    return 'inside' if rank <= 3 else 'outside'
-                fig2.update_traces(
-                    marker_color=BRAND_RED,
-                    texttemplate='<b>%{text:,.0f}건</b>',
-                    textfont_size=txt_size,
-                    textposition=['inside' if (n - i) <= 3 else 'outside' for i in range(n)]
-                )
-                fig2.update_layout(
-                    yaxis={'categoryorder': 'total ascending'},
-                    yaxis_title="", xaxis_title="",
-                    uniformtext_minsize=txt_size, uniformtext_mode=None
-                )
+                fig2 = px.bar(top10_others, x='이용건수', y=project_col, orientation='h', text='이용건수')
+                
+                # 하위 순위(파일관리 포함)은 텍스트를 바깥으로 위치
+                # top10_others는 오름차순(ascending=True) 상태이므로 맨 마지막(n-1)이 1위
+                text_pos = ['inside' if (n - i) <= 4 else 'outside' for i in range(n)]
+                
+                fig2.update_traces(marker_color=BRAND_RED, texttemplate='<b>%{text:,.0f}건</b>', textposition=text_pos)
+                fig2.update_layout(yaxis={'categoryorder': 'total ascending'}, yaxis_title="", xaxis_title="")
                 fig2 = apply_chart_style(fig2)
-                fig2.update_layout(
-                    height=620,
-                    margin=dict(t=0, b=20, l=350 if is_pres else 220, r=80)
-                )
+                
+                # outside 텍스트가 화면 우측에서 잘리지 않도록 r 여백을 80으로 확보
+                fig2.update_layout(height=400, margin=dict(t=10, b=20, l=220, r=80))
                 st.plotly_chart(fig2, use_container_width=True)
             else:
                 st.info("타 프로그램 이용 내역이 없습니다.")
@@ -1912,7 +1843,7 @@ def draw_team_duplicated_sil(valid_unique_df, col_map):
         total_dup = team_counts['실인원'].sum()
 
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:{24 if st.session_state.get('presentation_mode', False) else 18}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 팀세부 실인원 현황 (중복 실인원 합계: {total_dup:,.0f}명)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 팀세부 실인원 현황 (중복 실인원 합계: {total_dup:,.0f}명)</div>", unsafe_allow_html=True)
             # 수직 막대 그래프로 변경 (팀별 규모 파악 용이)
             fig = px.bar(team_counts, x=team_col, y='실인원', text='실인원',
                          color_discrete_sequence=[BRAND_RED])
@@ -1920,17 +1851,22 @@ def draw_team_duplicated_sil(valid_unique_df, col_map):
             fig.update_layout(xaxis_title="수행팀", yaxis_title="실인원(명)")
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
+# ======== 연인원 데이터 준비 (명 단위) ========
+unit_col = col_map.get('단위', '명/건')
+is_person_all = filtered_df[unit_col].astype(str).str.strip() == '명' if unit_col in filtered_df.columns else pd.Series([True] * len(filtered_df))
+df_yeon = filtered_df[is_person_all].copy()
+
+# ======== 탭 UI: 프리젠테이션 모드 OFF 시에만 표시 ========
 if not st.session_state.get("presentation_mode", False):
-    # ====== Tab 1: 연인원 현황 (Detailed Rebuild) ======
+    tab1, tab2 = st.tabs(["📊 연인원 현황", "👤 실인원 현황"])
+
+    # ====== Tab 1: 연인원 현황 ======
     with tab1:
         # 1. 장애유형별 이용 현황
         draw_disability_donut_yeon(df_yeon, col_map)
         
         # 2. 장애유형별 선호 프로그램 (가로 막대)
-        # '중식' 계열 사업은 선호 프로그램 통계에서 제외
-        _proj_col_for_filter = col_map.get('세부사업', '세부사업')
-        df_yeon_no_jungsik = df_yeon[~df_yeon[_proj_col_for_filter].astype(str).str.contains('중식', na=False)].copy()
-        draw_preferred_bar_disability(df_yeon_no_jungsik, col_map)
+        draw_preferred_bar_disability(df_yeon, col_map)
         
         # 3. 연령대별 현황 (나란히 배치)
         col_age1, col_age2 = st.columns(2)
@@ -1940,29 +1876,34 @@ if not st.session_state.get("presentation_mode", False):
             draw_age_bar_custom(df_yeon, is_disabled=False)
         
         # 4. 연령대별 선호 프로그램 (가로 막대)
-        draw_preferred_bar_age(df_yeon_no_jungsik, col_map)
+        draw_preferred_bar_age(df_yeon, col_map)
         
         # 5. 신규 이용자 현황 (접수상담 기준)
         draw_new_user_analysis(df_yeon, col_map)
         
-        # 6. 장애유형 X 연인원 교차 분석 (NEW)
+        # 6. 장애유형 X 연인원 교차 분석
         draw_cross_analysis(df_yeon, col_map)
     
-        # 6. 익명 참여자 분석
+        # 7. 익명 참여자 분석
         draw_etc_top10_yeon(df_yeon, col_map)
         
-        # 6. 월별 추이 및 요일별 이용 현황 (나란히 배치)
+        # 8. 월별 추이 및 요일별 이용 현황 (나란히 배치)
         col_trend, col_crowd = st.columns(2)
         with col_trend:
             draw_monthly_trend(df_yeon)
         with col_crowd:
             draw_daily_crowdedness(df_yeon)
 
-    # ====== Tab 2: 실인원 현황 (Detailed Implementation) ======
+    # ====== Tab 2: 실인원 현황 ======
     with tab2:
         # 실인원용 데이터셋: '기타' 제외 및 [이름+생년월일+장애유형+장애정도] 기준 중복 제거
-        _sil_cols = _uniq_cols_4 if _uniq_cols_4 else None
-        df_sil = _df_for_uniq.drop_duplicates(subset=_sil_cols).copy() if _sil_cols else _df_for_uniq.copy()
+        _sil_cols_tab = None
+        if all(c in _df_for_uniq.columns for c in ['이름', '생년월일', '장애유형', '장애정도']):
+            _sil_cols_tab = ['이름', '생년월일', '장애유형', '장애정도']
+        elif '고유ID' in _df_for_uniq.columns:
+            _sil_cols_tab = ['고유ID']
+        
+        df_sil = _df_for_uniq.drop_duplicates(subset=_sil_cols_tab).copy() if _sil_cols_tab else _df_for_uniq.copy()
         
         if not df_sil.empty:
             # 1. 장애유형별 이용 현황 (실인원)
@@ -1976,7 +1917,7 @@ if not st.session_state.get("presentation_mode", False):
             with col_age2:
                 draw_age_bar_custom(df_sil, is_disabled=False, title_label="실인원")
                 
-            # 4. 팀별 중복 실인원 현황 (NEW)
+            # 4. 팀별 중복 실인원 현황
             draw_team_duplicated_sil(_df_for_uniq, col_map)
                 
         else:
@@ -1987,67 +1928,45 @@ if not st.session_state.get("presentation_mode", False):
 # ================= 프리젠테이션 모드 렌더링 =================
 # ============================================================
 if st.session_state.get("presentation_mode", False):
-    # 프리젠테이션 전체화면: 사이드바·헤더·상단 블록 모두 숨김
+    # 전체화면 CSS 적용
     st.markdown("""
     <style>
-    /* 사이드바 완전 숨김 */
     [data-testid="stSidebar"],
     [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-    /* 상단 Streamlit 헤더 및 툴바 전체 숨김 */
     [data-testid="stHeader"],
     [data-testid="stToolbar"],
     [data-testid="stDecoration"],
     .stAppDeployButton,
     header { display: none !important; }
-    /* 하단 푸터 숨김 */
     footer,
     [data-testid="stBottom"],
     [data-testid="stBottomBlockContainer"] { display: none !important; }
-    /* 상단 여백 제거 */
     [data-testid="stAppViewBlockContainer"],
     [data-testid="stMainBlockContainer"] {
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
     }
-    /* 메인 컨테이너 전체 너비 사용 */
     [data-testid="stMainBlockContainer"] {
         max-width: 100% !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
     }
-    /* 데이터소스 설정 등 일반 블록도 숨김 */
     .pres-hide { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
     pres_interval_val = st.session_state.get("pres_interval", 5)
 
-    # 연인원용 데이터 준비 (이미 위에서 df_yeon 등이 정의돼 있음)
-    # 실인원용 데이터 준비
-    _sil_cols_p = _uniq_cols_4 if _uniq_cols_4 else None
+    # 실인원용 데이터셋 준비
+    _sil_cols_p = None
+    if all(c in _df_for_uniq.columns for c in ['이름', '생년월일', '장애유형', '장애정도']):
+        _sil_cols_p = ['이름', '생년월일', '장애유형', '장애정도']
+    elif '고유ID' in _df_for_uniq.columns:
+        _sil_cols_p = ['고유ID']
     df_sil_p = _df_for_uniq.drop_duplicates(subset=_sil_cols_p).copy() if _sil_cols_p else _df_for_uniq.copy()
 
-    # 슬라이드 정의: (제목, 렌더 함수)
+    # 슬라이드 함수 정의
     def _slide_disability_yeon():
         draw_disability_donut_yeon(df_yeon, col_map)
-
-    # 동적 생성 슬라이드 추가용 리스트 (장애유형별 선호 프로그램 - 도넛)
-    DYNAMIC_PREF_SLIDES = []
-    disability_col = col_map.get('장애유형', '장애유형')
-    if disability_col in df_yeon.columns:
-        preferred_order = [
-            '지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애', 
-            '신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애', 
-            '지적장애', '자폐성장애', '정신장애', '미등록', '비장애'
-        ]
-        actual_disabilities = [str(x) for x in df_yeon[disability_col].dropna().unique() if str(x).strip() != '']
-        ordered = [d for d in preferred_order if d in actual_disabilities]
-        extras = sorted([d for d in actual_disabilities if d not in preferred_order and d != '비장애'])
-        dynamic_disabilities = ordered + extras
-
-        for d_type in dynamic_disabilities:
-            def make_slide_fn(dt=d_type):
-                return lambda: draw_preferred_donut_disability_presentation(df_yeon, col_map, dt)
-            DYNAMIC_PREF_SLIDES.append(("장애유형별 선호 프로그램", make_slide_fn()))
 
     def _slide_age_disabled():
         draw_age_bar_custom(df_yeon, is_disabled=True)
@@ -2062,13 +1981,10 @@ if st.session_state.get("presentation_mode", False):
         draw_daily_crowdedness(df_yeon)
 
     def _slide_etc():
-        draw_etc_top10_yeon(df_yeon, col_map)
+        draw_etc_top10_yeon(df_yeon, col_map, presentation_mode=True)
 
     def _slide_new_user():
         draw_new_user_analysis(df_yeon, col_map)
-
-    def _slide_heatmap_age():
-        draw_preferred_heatmap_age_presentation(df_yeon, col_map)
 
     def _slide_disability_sil():
         draw_disability_donut_yeon(df_sil_p, col_map, title_label="실인원")
@@ -2076,69 +1992,146 @@ if st.session_state.get("presentation_mode", False):
     def _slide_age_disabled_sil():
         draw_age_bar_custom(df_sil_p, is_disabled=True, title_label="실인원")
 
-    def _slide_cross():
-        draw_cross_analysis(df_yeon, col_map, presentation_mode=True)
-
     def _slide_age_nondisabled_sil():
         draw_age_bar_custom(df_sil_p, is_disabled=False, title_label="실인원")
 
     def _slide_team_sil():
         draw_team_duplicated_sil(_df_for_uniq, col_map)
 
+    def _slide_cross():
+        draw_cross_analysis(df_yeon, col_map, presentation_mode=True)
+
+    def _slide_pref_age():
+        draw_preferred_bar_age(df_yeon, col_map, presentation_mode=True)
+
+    # 동적 슬라이드: 장애유형별 선호 프로그램 (도넛)
+    DYNAMIC_PREF_SLIDES = []
+    disability_col_pres = col_map.get('장애유형', '장애유형')
+    if disability_col_pres in df_yeon.columns:
+        preferred_order_pres = [
+            '지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애',
+            '신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애',
+            '지적장애', '자폐성장애', '정신장애', '미등록', '비장애'
+        ]
+        actual_disabilities_pres = [str(x) for x in df_yeon[disability_col_pres].dropna().unique() if str(x).strip() != '']
+        ordered_pres = [d for d in preferred_order_pres if d in actual_disabilities_pres]
+        extras_pres = sorted([d for d in actual_disabilities_pres if d not in preferred_order_pres and d != '비장애'])
+        dynamic_disabilities_pres = ordered_pres + extras_pres
+
+        for d_type in dynamic_disabilities_pres:
+            _proj_col = col_map.get('세부사업', '세부사업')
+            _perf_col = col_map.get('실적', '실적')
+            def make_slide_fn(dt=d_type):
+                def _fn():
+                    _df = df_yeon[df_yeon[disability_col_pres] == dt].copy()
+                    _df = _df[~_df[_proj_col].astype(str).str.contains('중식', na=False)] if _proj_col in _df.columns else _df
+                    if _df.empty or _proj_col not in _df.columns:
+                        st.info(f"{dt}: 데이터 없음")
+                        return
+                    stats = _df.groupby(_proj_col)[_perf_col].sum().reset_index()
+                    stats = stats[stats[_perf_col] > 0].sort_values(_perf_col, ascending=False).head(5).copy()
+                    if stats.empty:
+                        st.info(f"{dt}: 프로그램 데이터 없음")
+                        return
+                    total_p = stats[_perf_col].sum()
+                    stats['pct'] = stats[_perf_col] / total_p * 100
+                    
+                    group_map_local = {
+                        '지체장애': 'Red', '뇌병변장애': 'Red', '시각장애': 'Red', '청각장애': 'Red', '언어장애': 'Red',
+                        '신장장애': 'Blue', '심장장애': 'Blue', '간장애': 'Blue', '장루요루장애': 'Blue', '뇌전증장애': 'Blue',
+                        '지적장애': 'Yellow', '자폐성장애': 'Yellow', '정신장애': 'Yellow',
+                        '미등록': 'Gray', '비장애': 'Gray'
+                    }
+                    group_palettes_local = {
+                        'Red': [BRAND_RED, "#D65C69", "#E98C8E", "#F2B0B2", "#F9D4D5", BRAND_GRAY, "#BDBDBD"],
+                        'Blue': [BRAND_BLUE, CHART_BLUE, "#A4CAD2", "#C6E0E6", "#E3EFF2", BRAND_GRAY, "#BDBDBD"],
+                        'Yellow': [BRAND_YELLOW, CHART_YELLOW, "#F9D59B", "#FBE6C4", "#FDF3E2", BRAND_GRAY, "#BDBDBD"],
+                        'Gray': [BRAND_GRAY, CHART_GRAY, "#BDBDBD", "#D6D6D6", "#EBEBEB", "#999999", "#777777"]
+                    }
+                    _grp = group_map_local.get(dt, 'Gray')
+                    colors_p = group_palettes_local[_grp]
+                    
+                    chart_labels_p = []
+                    legend_texts = []
+                    for i, (_, r) in enumerate(stats.iterrows()):
+                        chart_labels_p.append(f"<b>{r[_proj_col]}</b><br>{r['pct']:.1f}%")
+                        legend_texts.append(f"{r[_proj_col]} {r[_perf_col]:,.0f}명 ({r['pct']:.1f}%)")
+                    stats['_legend'] = legend_texts
+                        
+                    with st.container(border=True):
+                        _dname_color = colors_p[0]
+                        st.markdown(
+                            f"<div style='font-size:24px;font-weight:bold;color:{BRAND_GRAY}'>"
+                            f"⭐ <span style='color:{_dname_color} !important;'>{dt}</span> 선호 프로그램 (Top 5) "
+                            f"<span style='font-size:16px;color:#888 !important;'>*중식제공 제외</span></div>",
+                            unsafe_allow_html=True
+                        )
+                        fig_p = px.pie(stats, names='_legend', values=_perf_col, hole=0.48,
+                                      color_discrete_sequence=colors_p, custom_data=[_proj_col])
+
+                        _rot_angle = 0
+                        if dt == '장루요루장애':
+                            _rot_angle = -90
+                        elif dt == '뇌전증장애':
+                            _rot_angle = 90
+                        elif dt == '시각장애':
+                            _rot_angle = 20
+
+                        fig_p.update_traces(
+                            rotation=_rot_angle,
+                            text=chart_labels_p, textinfo='text', textposition='outside',
+                            textfont_size=17,
+                            hovertemplate="<b>%{customdata[0]}</b><br>%{value:,.0f}명 (%{percent:.1%})<extra></extra>",
+                            domain=dict(x=[0.1, 0.55], y=[0.1, 0.9])
+                        )
+                        fig_p.update_layout(
+                            showlegend=True,
+                            legend=dict(x=0.65, xanchor='left', y=0.5, yanchor='middle', font=dict(size=16)),
+                            margin=dict(t=0, b=0, l=0, r=0), height=500,
+                            paper_bgcolor='rgba(0,0,0,0)'
+                        )
+                        st.plotly_chart(apply_chart_style(fig_p), use_container_width=True)
+                return _fn
+            DYNAMIC_PREF_SLIDES.append(("장애유형별 선호 프로그램", make_slide_fn()))
+
     SLIDES = [
-        ("장애유형별 이용 현황 (연인원)",         _slide_disability_yeon),
+        ("장애유형별 이용 현황",              _slide_disability_yeon),
     ] + DYNAMIC_PREF_SLIDES + [
+        ("연령대별 현황 – 장애/미등록",       _slide_age_disabled),
+        ("연령대별 현황 – 비장애",            _slide_age_nondisabled),
+        ("연령대별 선호 프로그램",            _slide_pref_age),
         ("장애유형 X 연령대별 선호 프로그램",     _slide_cross),
-        ("연령대별 선호 프로그램",  _slide_heatmap_age),
-        ("연령대별 현황 – 장애/미등록 (연인원)",   _slide_age_disabled),
-        ("연령대별 현황 – 비장애 (연인원)",        _slide_age_nondisabled),
-        ("월별 이용자 추이",                       _slide_monthly),
-        ("요일별 이용 현황",                          _slide_daily),
-        ("익명 참여자 분석 (기타)",                 _slide_etc),
-        ("신규 이용자 현황",                        _slide_new_user),
-        ("장애유형별 이용 현황 (실인원)",            _slide_disability_sil),
-        ("연령대별 현황 – 장애/미등록 (실인원)",    _slide_age_disabled_sil),
-        ("연령대별 현황 – 비장애 (실인원)",         _slide_age_nondisabled_sil),
-        ("팀별 중복 실인원 현황",                   _slide_team_sil),
+        ("기타 이용자 참여비중 분석",           _slide_etc),
+        ("신규 이용자 현황",                    _slide_new_user),
+        ("월별 이용자 추이",                    _slide_monthly),
+        ("요일별 이용 현황",                    _slide_daily),
     ]
     TOTAL_SLIDES = len(SLIDES)
-
-    # 현재 슬라이드 인덱스
     idx = st.session_state.get("pres_slide_idx", 0) % TOTAL_SLIDES
     slide_title, slide_fn = SLIDES[idx]
 
-    # --- 상단 고정 헤더 영역 (배경 없이 브랜드 컬러 텍스트만) ---
+    # 상단 헤더
     st.markdown(
         """
-        <div style='
-            padding: 24px 32px 20px 32px;
-            margin-bottom: 12px;
-            text-align: center;
-        '>
-            <span style='
-                font-size: 52px;
-                font-weight: 900;
-                color: #BE1E2D;
-                letter-spacing: 2px;
-            '>서부장애인종합복지관 이용 분석 현황</span>
+        <div style='padding: 24px 32px 20px 32px; margin-bottom: 12px; text-align: center;'>
+            <span style='font-size: 52px; font-weight: 900; color: #BE1E2D; letter-spacing: 2px;'>
+                열매똑똑 이용자 현황 분석
+            </span>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    # 슬라이드 제목 (왼쪽 정렬)
-    st.markdown(
-        f"<div class='pres-slide-title'>📌 {slide_title}</div>",
-        unsafe_allow_html=True
-    )
+    # 슬라이드 제목
+    st.markdown(f"<div class='pres-slide-title'>📌 {slide_title}</div>", unsafe_allow_html=True)
 
-    # 슬라이드 콘텐츠 (Fade 애니메이션)
+    # 슬라이드 콘텐츠
     with st.container():
         st.markdown("<div class='pres-slide-content'>", unsafe_allow_html=True)
         slide_fn()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # 슬라이드 번호 표시 + 수동 이동 버튼
+    # 슬라이드 번호 + 이동 버튼
     col_prev, col_info, col_next = st.columns([1, 3, 1])
     with col_prev:
         if st.button("◀ 이전", key="pres_prev", use_container_width=True):
@@ -2155,28 +2148,39 @@ if st.session_state.get("presentation_mode", False):
             st.session_state["pres_slide_idx"] = (idx + 1) % TOTAL_SLIDES
             st.rerun()
 
-    # JS: 브라우저 전체화면 + 슬라이드 자동전환 + 키보드 방향키 지원
-    # ★ idx를 HTML에 포함시켜 슬라이드마다 iframe이 재실행되도록 강제
+    # JS: 자동전환 + 키보드 방향키
     import streamlit.components.v1 as components
     components.html(
         f"""
         <script>
-        /* slide_idx={idx} – 이 값이 바뀌면 Streamlit이 iframe을 재렌더링함 */
+        /* slide_idx={idx} */
         (function() {{
             var doc = window.parent.document;
-
-            // 1) 브라우저 전체화면 요청
             var elem = doc.documentElement;
+            // 전체화면 시도 (데스크톱)
+            var _fullscreenOk = false;
             try {{
                 if (!doc.fullscreenElement) {{
-                    if (elem.requestFullscreen)        elem.requestFullscreen();
-                    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-                    else if (elem.mozRequestFullScreen)   elem.mozRequestFullScreen();
-                    else if (elem.msRequestFullscreen)    elem.msRequestFullscreen();
+                    var _req = elem.requestFullscreen
+                        || elem.webkitRequestFullscreen
+                        || elem.mozRequestFullScreen
+                        || elem.msRequestFullscreen;
+                    if (_req) {{
+                        _req.call(elem).then(function() {{
+                            _fullscreenOk = true;
+                        }}).catch(function() {{
+                            // 태블릿 fallback: 스크롤 최상단 + 스크롤바 숨김
+                            window.parent.scrollTo(0, 0);
+                            doc.body.style.overflow = 'hidden';
+                        }});
+                    }}
                 }}
-            }} catch(e) {{}}
+            }} catch(e) {{
+                // 동기식 실패(구형 브라우저) fallback
+                window.parent.scrollTo(0, 0);
+                doc.body.style.overflow = 'hidden';
+            }}
 
-            // 2) 자동 전환 타이머 (interval ms)
             var _timer = setTimeout(function() {{
                 var btns = doc.querySelectorAll('button');
                 for (var i = 0; i < btns.length; i++) {{
@@ -2187,7 +2191,6 @@ if st.session_state.get("presentation_mode", False):
                 }}
             }}, {pres_interval_val * 1000});
 
-            // 3) 키보드 방향키로 슬라이드 수동 전환
             function _keyHandler(e) {{
                 if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {{
                     clearTimeout(_timer);
@@ -2204,7 +2207,6 @@ if st.session_state.get("presentation_mode", False):
                 }}
             }}
             doc.addEventListener('keydown', _keyHandler);
-
             window.addEventListener('beforeunload', function() {{
                 clearTimeout(_timer);
                 doc.removeEventListener('keydown', _keyHandler);
@@ -2214,3 +2216,6 @@ if st.session_state.get("presentation_mode", False):
         """,
         height=0,
     )
+
+
+
