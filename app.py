@@ -2161,7 +2161,7 @@ if st.session_state.get("presentation_mode", False):
                 return _fn
             
             # 사이드바에서 장애유형 이름이 구별되도록 제목에 (유형명) 추가
-            DYNAMIC_PREF_SLIDES.append((f"장애유형별 선호 프로그램 ({dt})", make_slide_fn()))
+            DYNAMIC_PREF_SLIDES.append((f"장애유형별 선호 프로그램 ({d_type})", make_slide_fn()))
 
     SLIDES = [
         ("장애유형별 이용 현황",              _slide_disability_yeon),
