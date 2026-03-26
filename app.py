@@ -2067,7 +2067,7 @@ if st.session_state.get("presentation_mode", False):
             else:
                 st.info("데이터가 없습니다.")
 
-    # 동적 슬라이드: 장애유형별 선호 프로그램 (도넛)
+    # 동적 슬라이드: 장애유형별 선호 프로그램 (도넛 - 각 장애유형당 1개 슬라이드)
     DYNAMIC_PREF_SLIDES = []
     disability_col_pres = col_map.get('장애유형', '장애유형')
     if disability_col_pres in df_yeon.columns:
@@ -2084,9 +2084,10 @@ if st.session_state.get("presentation_mode", False):
         extras_pres = sorted([d for d in actual_disabilities_pres if d not in dashboard_order])
         dynamic_disabilities_pres = ordered_pres + extras_pres
 
+        _proj_col = col_map.get('세부사업', '세부사업')
+        _perf_col = col_map.get('실적', '실적')
+
         for d_type in dynamic_disabilities_pres:
-            _proj_col = col_map.get('세부사업', '세부사업')
-            _perf_col = col_map.get('실적', '실적')
             def make_slide_fn(dt=d_type):
                 def _fn():
                     _df = df_yeon[df_yeon[disability_col_pres] == dt].copy()
@@ -2127,7 +2128,7 @@ if st.session_state.get("presentation_mode", False):
                     with st.container(border=True):
                         _dname_color = colors_p[0]
                         st.markdown(
-                            f"<div style='font-size:24px;font-weight:bold;color:{BRAND_GRAY}'>"
+                            f"<div style='font-size:24px;font-weight:bold;color:{BRAND_GRAY};'>"
                             f"⭐ <span style='color:{_dname_color} !important;'>{dt}</span> 선호 프로그램 (Top 5) "
                             f"<span style='font-size:16px;color:#888 !important;'>*중식제공 제외</span></div>",
                             unsafe_allow_html=True
@@ -2158,7 +2159,9 @@ if st.session_state.get("presentation_mode", False):
                         )
                         st.plotly_chart(apply_chart_style(fig_p), use_container_width=True)
                 return _fn
-            DYNAMIC_PREF_SLIDES.append(("장애유형별 선호 프로그램", make_slide_fn()))
+            
+            # 사이드바에서 장애유형 이름이 구별되도록 제목에 (유형명) 추가
+            DYNAMIC_PREF_SLIDES.append((f"장애유형별 선호 프로그램 ({dt})", make_slide_fn()))
 
     SLIDES = [
         ("장애유형별 이용 현황",              _slide_disability_yeon),
