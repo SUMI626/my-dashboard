@@ -2060,7 +2060,7 @@ if st.session_state.get("presentation_mode", False):
                     fig.update_layout(
                         xaxis_title="연령대", 
                         yaxis_title="프로그램명",
-                        height=750,  # 강제로 높이 설정
+                        height=600,  # 강제로 높이 설정 (스크린에 맞게 축소)
                         margin=dict(l=50, r=50, t=30, b=30)
                     )
                     st.plotly_chart(fig, use_container_width=True)
