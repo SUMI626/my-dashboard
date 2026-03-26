@@ -850,7 +850,7 @@ if not _is_pres:
         st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:10px;'>🛠️ 데이터 소스 선택</div>", unsafe_allow_html=True)
         source_option = st.radio(
             "분석할 데이터를 선택해 주세요:",
-            ["2025년 최종본(엑셀)", "2026년 실시간(구글 스프레드시트)"],
+            ["2026년 실시간(구글 스프레드시트)", "2025년 최종본(엑셀)"],
             index=0,
             label_visibility="collapsed"
         )
@@ -2115,7 +2115,7 @@ if st.session_state.get("presentation_mode", False):
         """
         <div style='padding: 24px 32px 20px 32px; margin-bottom: 12px; text-align: center;'>
             <span style='font-size: 52px; font-weight: 900; color: #BE1E2D; letter-spacing: 2px;'>
-                열매똑똑 이용자 현황 분석
+                서부장애인종합복지관 이용자 현황 분석
             </span>
         </div>
         """,
