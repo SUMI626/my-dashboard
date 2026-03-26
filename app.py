@@ -2183,16 +2183,20 @@ if st.session_state.get("presentation_mode", False):
             DYNAMIC_PREF_SLIDES.append((f"장애유형별 선호 프로그램 ({d_type})", make_slide_fn()))
 
     SLIDES = [
-        ("장애유형별 이용 현황",              _slide_disability_yeon),
+        ("장애유형별 이용 현황 (연인원)",              _slide_disability_yeon),
+        ("장애유형별 이용 현황 (실인원)",              _slide_disability_sil),
     ] + DYNAMIC_PREF_SLIDES + [
-        ("연령대별 현황 – 장애/미등록",       _slide_age_disabled),
-        ("연령대별 현황 – 비장애",            _slide_age_nondisabled),
-        ("연령대별 선호 프로그램",            _slide_pref_age),
-        ("장애유형 X 연령대별 선호 프로그램",     _slide_cross),
-        ("기타 이용자 참여비중 분석",           _slide_etc),
-        ("신규 이용자 현황",                    _slide_new_user),
-        ("월별 이용자 추이",                    _slide_monthly),
-        ("요일별 이용 현황",                    _slide_daily),
+        ("연령대별 현황 – 장애/미등록 (연인원)",       _slide_age_disabled),
+        ("연령대별 현황 – 장애/미등록 (실인원)",       _slide_age_disabled_sil),
+        ("연령대별 현황 – 비장애 (연인원)",            _slide_age_nondisabled),
+        ("연령대별 현황 – 비장애 (실인원)",            _slide_age_nondisabled_sil),
+        ("연령대별 선호 프로그램",                    _slide_pref_age),
+        ("장애유형 X 연령대별 선호 프로그램",             _slide_cross),
+        ("기타 이용자 참여비중 분석",                   _slide_etc),
+        ("신규 이용자 현황",                            _slide_new_user),
+        ("월별 이용자 추이",                            _slide_monthly),
+        ("요일별 이용 현황",                            _slide_daily),
+        ("팀별 세부 실인원 현황",                       _slide_team_sil),
     ]
     TOTAL_SLIDES = len(SLIDES)
     idx = st.session_state.get("pres_slide_idx", 0) % TOTAL_SLIDES
