@@ -2013,7 +2013,12 @@ if st.session_state.get("presentation_mode", False):
             df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
             
             if not df_filtered.empty:
+                # 너무 많은 사업(난잡함) 방지를 위해 전체 실적 기준 Top 12 사업만 필터링
+                top_projects = df_filtered.groupby(project_col)[perf_col].sum().nlargest(12).index
+                df_filtered = df_filtered[df_filtered[project_col].isin(top_projects)]
+                
                 stats = df_filtered.groupby([group_col, project_col])[perf_col].sum().reset_index()
+                # 각 연령대별 Top 3
                 top_stats = stats.sort_values([group_col, perf_col], ascending=[True, False]).groupby(group_col).head(3).copy()
                 
                 pivot_df = top_stats.pivot(index=project_col, columns=group_col, values=perf_col).fillna(0)
@@ -2034,21 +2039,26 @@ if st.session_state.get("presentation_mode", False):
                         val = pivot_df.loc[i, col]
                         pct = pivot_pct.loc[i, col]
                         if val > 0:
-                            row_text.append(f"<b>{val:,.0f}명<br>({pct:.1f}%)</b>")
+                            # 캡처본 포맷: 100명 (50.0%) - 줄바꿈 없음
+                            row_text.append(f"<b>{val:,.0f}명 ({pct:.1f}%)</b>")
                         else:
                             row_text.append("")
                     text_matrix.append(row_text)
                 
-                with st.container(border=True):
-                    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🔥 연령대별 선호 프로그램 히트맵 (Top 3)</div>", unsafe_allow_html=True)
-                    
+                # 커스텀 베이지-다크레드 색상
+                custom_colorscale = [
+                    [0.0, '#FFF3E0'],
+                    [1.0, '#B81D22']
+                ]
+
+                with st.container(border=True):                    
                     fig = px.imshow(pivot_pct,
-                                    labels=dict(x="연령대", y="세부사업", color="선호 비중(%)"),
+                                    labels=dict(x="연령대", y="프로그램명", color="선호 비중(%)"),
                                     x=pivot_df.columns,
                                     y=pivot_df.index,
                                     text_auto=False,
                                     aspect="auto",
-                                    color_continuous_scale="Reds")
+                                    color_continuous_scale=custom_colorscale)
                     
                     fig.update_traces(
                         text=text_matrix,
@@ -2056,7 +2066,13 @@ if st.session_state.get("presentation_mode", False):
                         hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>"
                     )
                     
-                    fig.update_layout(xaxis_title="연령대", yaxis_title="세부사업", height=500)
+                    fig.update_layout(
+                        xaxis_title="연령대", 
+                        yaxis_title="프로그램명", 
+                        height=550,
+                        margin=dict(l=50, r=50, t=30, b=50),
+                        coloraxis_showscale=False # 캡처본에 범례(컬러바)가 없었음
+                    )
                     st.plotly_chart(apply_chart_style(fig), use_container_width=True)
             else:
                 st.info("데이터가 없습니다.")
