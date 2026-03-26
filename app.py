@@ -2002,7 +2002,7 @@ if st.session_state.get("presentation_mode", False):
         draw_cross_analysis(df_yeon, col_map, presentation_mode=True)
 
     def _slide_pref_age():
-        draw_preferred_bar_age(df_yeon, col_map, presentation_mode=True)
+        draw_heatmap(df_yeon, col_map, '_연령대', '연령대별 선호 프로그램')
 
     # 동적 슬라이드: 장애유형별 선호 프로그램 (도넛)
     DYNAMIC_PREF_SLIDES = []
