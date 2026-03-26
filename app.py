@@ -597,7 +597,8 @@ def draw_monthly_trend(df_data):
         )
         
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (연인원 합계 기준)</div>", unsafe_allow_html=True)
+            _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+            st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📅 월별 이용자 추이 (연인원 합계 기준)</div>", unsafe_allow_html=True)
             fig = px.line(monthly_counts, x='월', y='이용자수', markers=True,
                           text='이용자수',
                           hover_data={'증감률_텍스트': True, '이용자수': ':,.0f'})
@@ -618,7 +619,8 @@ def draw_daily_crowdedness(df_data):
         daily_counts = daily_counts.sort_values('요일')
         
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🕒 요일별 이용 현황</div>", unsafe_allow_html=True)
+            _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+            st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🕒 요일별 이용 현황</div>", unsafe_allow_html=True)
             fig = px.bar(daily_counts, x='요일명', y='이용자수', 
                          text='이용자수',
                          color='이용자수',
@@ -1130,7 +1132,8 @@ def draw_disability_bar_yeon(df_yeon, col_map, title_label="연인원"):
             total_sum = dist_data['실적'].sum()
             
             with st.container(border=True):
-                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 장애유형별 이용 현황 ({title_label}: {total_sum:,.0f}명)</div>", unsafe_allow_html=True)
+                _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+                st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 장애유형별 이용 현황 ({title_label}: {total_sum:,.0f}명)</div>", unsafe_allow_html=True)
                 
                 color = CHART_RED if title_label == "실인원" else BRAND_BLUE
                 fig = px.bar(dist_data, x='실적', y=disability_col, orientation='h',
@@ -1333,7 +1336,8 @@ def draw_etc_top10_yeon(df_yeon, col_map, presentation_mode=False):
                 # --- 일반 대시보드 모드: 슬림 트리맵 ---
                 with st.container(border=True): # 연령대 그래프와 똑같은 디자인의 박스
                     # 상단 연령대 차트와 타이틀 스타일 완벽 동기화 (폰트, 굵기, 아이콘)
-                    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석 (연인원: {total_etc:,.0f}명)</div>", unsafe_allow_html=True)
+                    _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+                    st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>👤 '기타' 이용자 참여 비중 분석 (연인원: {total_etc:,.0f}명)</div>", unsafe_allow_html=True)
                     
                     # values는 영역 크기 제어용(visual_weight), color는 색상 농도 제어용(실적)
                     fig = px.treemap(etc_stats, path=[project_col], values='visual_weight',
@@ -1392,7 +1396,8 @@ def draw_preferred_bar_disability(df_yeon, col_map):
             # 2. 제목 및 로컬 팝오버 필터 (상단 배치, 비율 조정으로 필터 크기 축소)
             col_title, col_filter = st.columns([3, 1])
             with col_title:
-                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>♿ 장애유형별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
+                _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+                st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>♿ 장애유형별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
             
             with col_filter:
                 available_types = [t for t in disability_order if t in df_yeon[group_col].unique()]
@@ -1483,14 +1488,16 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
             if not presentation_mode:
                 col_title, col_filter = st.columns([3, 1])
                 with col_title:
-                    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>👥 연령대별 선호 프로그램 (비중 히트맵) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
+                    _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+                st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>👥 연령대별 선호 프로그램 (비중 히트맵) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
                 
                 with col_filter:
                     available_ages = [a for a in age_order if a in df_yeon[group_col].unique()]
                     with st.popover("분석할 연령대 선택", use_container_width=True):
                         actual_selection = checkbox_group("연령대 선택", available_ages, f"pref_age_{group_col}", is_sidebar=False)
             else:
-                st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px; margin-bottom:15px;'>👥 연령대별 선호 프로그램 (비중 히트맵) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
+                _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+                st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px; margin-bottom:15px;'>👥 연령대별 선호 프로그램 (비중 히트맵) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
                 available_ages = [a for a in age_order if a in df_yeon[group_col].unique()]
                 
                 # 프리젠테이션이 시작될 때 현재 session state를 따르거나, 없으면 전체 선택 반환
@@ -1721,7 +1728,7 @@ def draw_cross_analysis(df_yeon, col_map, presentation_mode=False):
         filter_caption_text = f"장애유형: {d_text} │ 연령대: {a_text} │ 합계: {total_perf_val:,.0f}명"
 
         if presentation_mode:
-            st.markdown(f"<p style='font-size:20px; font-weight:600; color:#333; margin:4px 0 8px 0;'>{filter_caption_text}</p>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:24px; font-weight:bold; color:{BRAND_GRAY}; margin:4px 0 8px 0;'>{filter_caption_text}</div>", unsafe_allow_html=True)
         else:
             st.caption(filter_caption_text)
 
@@ -1794,7 +1801,8 @@ def draw_new_user_analysis(df_data, col_map):
     top10_others = other_programs_count.sort_values('이용건수', ascending=False).head(10).sort_values('이용건수', ascending=True)
     
     with st.container(border=True):
-        st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:15px;'>🌱 신규 이용자 현황 (접수상담 이력자 기준: 총 {len(new_user_ids):,.0f}명)</div>", unsafe_allow_html=True)
+        _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+        st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:15px;'>🌱 신규 이용자 현황 (접수상담 이력자 기준: 총 {len(new_user_ids):,.0f}명)</div>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1841,7 +1849,8 @@ def draw_team_duplicated_sil(valid_unique_df, col_map):
         total_dup = team_counts['실인원'].sum()
 
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 팀세부 실인원 현황 (중복 실인원 합계: {total_dup:,.0f}명)</div>", unsafe_allow_html=True)
+            _fs = 24 if st.session_state.get("presentation_mode", False) else 18
+            st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>📊 팀세부 실인원 현황 (중복 실인원 합계: {total_dup:,.0f}명)</div>", unsafe_allow_html=True)
             # 수직 막대 그래프로 변경 (팀별 규모 파악 용이)
             fig = px.bar(team_counts, x=team_col, y='실인원', text='실인원',
                          color_discrete_sequence=[BRAND_RED])
