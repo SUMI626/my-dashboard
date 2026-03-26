@@ -1316,6 +1316,7 @@ def draw_etc_top10_yeon(df_yeon, col_map, presentation_mode=False):
                     fig_p = apply_chart_style(fig_p)  # 스타일 먼저 적용 (이후 layout 업데이트로 폰트 크기 덮어씀)
                     
                     fig_p.update_traces(
+                        rotation=75,
                         text=chart_labels_p, textinfo='text', textposition='outside',
                         textfont_size=17,
                         hovertemplate="<b>%{customdata[1]}</b><br>실적: %{customdata[0]:,.0f}명 (%{percent:.1%})<extra></extra>",
@@ -1544,7 +1545,12 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
                     val = pivot_df.loc[i, col]
                     pct = pivot_pct.loc[i, col]
                     if val > 0:
-                        row_text.append(f"<b>{val:,.0f}명<br>({pct:.1f}%)</b>")
+                        is_dark_cell = (col in ['50대', '60대'] and i == '복지일자리(근무)') or \
+                                       (col in ['10대미만', '10대'] and i == '발달재활')
+                        if is_dark_cell:
+                            row_text.append(f"<span style='color: white;'><b>{val:,.0f}명<br>({pct:.1f}%)</b></span>")
+                        else:
+                            row_text.append(f"<b>{val:,.0f}명<br>({pct:.1f}%)</b>")
                     else:
                         row_text.append("")
                 text_matrix.append(row_text)
@@ -2032,7 +2038,12 @@ if st.session_state.get("presentation_mode", False):
                         pct = pivot_pct.loc[i, col]
                         if val > 0:
                             # 캡처본 포맷: 100명 (50.0%) - 줄바꿈 없음
-                            row_text.append(f"<b>{val:,.0f}명 ({pct:.1f}%)</b>")
+                            is_dark_cell = (col in ['50대', '60대'] and i == '복지일자리(근무)') or \
+                                           (col in ['10대미만', '10대'] and i == '발달재활')
+                            if is_dark_cell:
+                                row_text.append(f"<span style='color: white;'><b>{val:,.0f}명 ({pct:.1f}%)</b></span>")
+                            else:
+                                row_text.append(f"<b>{val:,.0f}명 ({pct:.1f}%)</b>")
                         else:
                             row_text.append("")
                     text_matrix.append(row_text)
