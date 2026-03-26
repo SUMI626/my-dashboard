@@ -1313,6 +1313,8 @@ def draw_etc_top10_yeon(df_yeon, col_map, presentation_mode=False):
                     fig_p = px.pie(etc_stats, names='_legend', values='visual_weight', hole=0.48,
                                   color_discrete_sequence=colors_p, custom_data=['실적', project_col])
                     
+                    fig_p = apply_chart_style(fig_p)  # 스타일 먼저 적용 (이후 layout 업데이트로 폰트 크기 덮어씀)
+                    
                     fig_p.update_traces(
                         text=chart_labels_p, textinfo='text', textposition='outside',
                         textfont_size=17,
@@ -1325,7 +1327,7 @@ def draw_etc_top10_yeon(df_yeon, col_map, presentation_mode=False):
                         margin=dict(t=0, b=0, l=0, r=0), height=500,
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
-                    st.plotly_chart(apply_chart_style(fig_p), use_container_width=True)
+                    st.plotly_chart(fig_p, use_container_width=True)
             else:
                 # --- 일반 대시보드 모드: 슬림 트리맵 ---
                 with st.container(border=True): # 연령대 그래프와 똑같은 디자인의 박스
@@ -2138,6 +2140,8 @@ if st.session_state.get("presentation_mode", False):
                         fig_p = px.pie(stats, names='_legend', values=_perf_col, hole=0.48,
                                       color_discrete_sequence=colors_p, custom_data=[_proj_col])
 
+                        fig_p = apply_chart_style(fig_p)  # 스타일 먼저 적용 (이후 layout 업데이트로 폰트 크기 덮어씀)
+
                         _rot_angle = 0
                         if dt == '장루요루장애':
                             _rot_angle = -90
@@ -2159,7 +2163,7 @@ if st.session_state.get("presentation_mode", False):
                             margin=dict(t=0, b=0, l=0, r=0), height=500,
                             paper_bgcolor='rgba(0,0,0,0)'
                         )
-                        st.plotly_chart(apply_chart_style(fig_p), use_container_width=True)
+                        st.plotly_chart(fig_p, use_container_width=True)
                 return _fn
             
             # 사이드바에서 장애유형 이름이 구별되도록 제목에 (유형명) 추가
