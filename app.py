@@ -1548,7 +1548,7 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
                 text_matrix.append(row_text)
 
             # 프리젠테이션 모드면 높이를 좀 더 크게
-            _h = min(700, max(450, len(pivot_df)*45 + 100)) if not presentation_mode else 650
+            _h = min(700, max(450, len(pivot_df)*45 + 100)) if not presentation_mode else 800
             
             fig = px.imshow(pivot_pct,
                             labels=dict(x="연령대", y="세부사업", color="선호 비중(%)"),
@@ -2077,8 +2077,9 @@ if st.session_state.get("presentation_mode", False):
     if disability_col_pres in df_yeon.columns:
         preferred_order_pres = [
             '지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애',
-            '신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애',
-            '지적장애', '자폐성장애', '정신장애', '미등록', '비장애'
+            '지적장애', '자폐성장애', '정신장애',
+            '신장장애', '심장장애', '호흡기장애', '간장애', '안면장애', '장루요루장애', '뇌전증장애', '간질장애',
+            '기타', '미등록', '비장애'
         ]
         actual_disabilities_pres = [str(x) for x in df_yeon[disability_col_pres].dropna().unique() if str(x).strip() != '']
         ordered_pres = [d for d in preferred_order_pres if d in actual_disabilities_pres]
@@ -2105,9 +2106,9 @@ if st.session_state.get("presentation_mode", False):
                     
                     group_map_local = {
                         '지체장애': 'Red', '뇌병변장애': 'Red', '시각장애': 'Red', '청각장애': 'Red', '언어장애': 'Red',
-                        '신장장애': 'Blue', '심장장애': 'Blue', '간장애': 'Blue', '장루요루장애': 'Blue', '뇌전증장애': 'Blue',
+                        '신장장애': 'Blue', '심장장애': 'Blue', '호흡기장애': 'Blue', '간장애': 'Blue', '안면장애': 'Blue', '장루요루장애': 'Blue', '뇌전증장애': 'Blue', '간질장애': 'Blue',
                         '지적장애': 'Yellow', '자폐성장애': 'Yellow', '정신장애': 'Yellow',
-                        '미등록': 'Gray', '비장애': 'Gray'
+                        '미등록': 'Gray', '비장애': 'Gray', '기타': 'Gray'
                     }
                     group_palettes_local = {
                         'Red': [BRAND_RED, "#D65C69", "#E98C8E", "#F2B0B2", "#F9D4D5", BRAND_GRAY, "#BDBDBD"],
