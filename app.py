@@ -1321,7 +1321,7 @@ def draw_etc_top10_yeon(df_yeon, col_map, presentation_mode=False):
                     )
                     fig_p.update_layout(
                         showlegend=True,
-                        legend=dict(x=0.65, xanchor='left', y=0.5, yanchor='middle', font=dict(size=16)),
+                        legend=dict(x=0.65, xanchor='left', y=0.5, yanchor='middle', font=dict(size=18)),
                         margin=dict(t=0, b=0, l=0, r=0), height=500,
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
@@ -1559,6 +1559,7 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
                 showscale=False,
                 text=text_matrix,
                 texttemplate="%{text}",
+                textfont=dict(size=16 if presentation_mode else 12, color="#4D4D4D"),
                 hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{z:.1f}%<extra></extra>"
             ))
             
@@ -2053,6 +2054,7 @@ if st.session_state.get("presentation_mode", False):
                         showscale=False,
                         text=text_matrix,
                         texttemplate="%{text}",
+                        textfont=dict(size=16, color="#4D4D4D"),  # 축 라벨과 통일된 폰트 크기 및 색상
                         hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{z:.1f}%<extra></extra>"
                     ))
                     
