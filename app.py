@@ -2160,6 +2160,8 @@ if st.session_state.get("presentation_mode", False):
                             _rot_angle = 90
                         elif dt == '시각장애':
                             _rot_angle = 20
+                        elif dt == '비장애':
+                            _rot_angle = 50
 
                         fig_p.update_traces(
                             rotation=_rot_angle,
