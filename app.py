@@ -2071,19 +2071,18 @@ if st.session_state.get("presentation_mode", False):
     DYNAMIC_PREF_SLIDES = []
     disability_col_pres = col_map.get('장애유형', '장애유형')
     if disability_col_pres in df_yeon.columns:
-        # "대시보드의 순서대로" 피드백 반영: '실적' 크기순(내림차순)으로 실제 바 차트 렌더링 순서와 일치시킴
-        _perf_col = col_map.get('실적', '실적')
-        if _perf_col in df_yeon.columns:
-            dist_stats = df_yeon.groupby(disability_col_pres)[_perf_col].sum().reset_index(name='size')
-        else:
-            dist_stats = df_yeon.groupby(disability_col_pres).size().reset_index(name='size')
-            
-        dist_stats = dist_stats.sort_values(by='size', ascending=False)
-        dynamic_disabilities_pres = dist_stats[disability_col_pres].tolist()
+        # 사용자의 대시보드 화면과 완벽히 동일한 고정 순서 적용 (Red -> Blue -> Yellow -> Gray)
+        dashboard_order = [
+            '지체장애', '뇌병변장애', '시각장애', '청각장애', '언어장애', 
+            '신장장애', '심장장애', '간장애', '장루요루장애', '뇌전증장애', '호흡기장애', '안면장애', '간질장애',
+            '지적장애', '자폐성장애', '정신장애', 
+            '미등록', '비장애', '기타'
+        ]
         
-        # 다만 '비장애', '미등록', '기타' 등 특수 집단은 맨 뒤로 보내기
-        specials = ['기타', '미등록', '비장애']
-        dynamic_disabilities_pres = [d for d in dynamic_disabilities_pres if d not in specials] + [d for d in specials if d in dynamic_disabilities_pres]
+        actual_disabilities_pres = [str(x) for x in df_yeon[disability_col_pres].dropna().unique() if str(x).strip() != '']
+        ordered_pres = [d for d in dashboard_order if d in actual_disabilities_pres]
+        extras_pres = sorted([d for d in actual_disabilities_pres if d not in dashboard_order])
+        dynamic_disabilities_pres = ordered_pres + extras_pres
 
         for d_type in dynamic_disabilities_pres:
             _proj_col = col_map.get('세부사업', '세부사업')
