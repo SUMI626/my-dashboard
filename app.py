@@ -1548,21 +1548,19 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
                 text_matrix.append(row_text)
 
             # 프리젠테이션 모드면 높이를 좀 더 크게
-            _h = min(700, max(450, len(pivot_df)*45 + 100)) if not presentation_mode else 800
+            _h = min(700, max(450, len(pivot_df)*45 + 100)) if not presentation_mode else 1000
             
-            fig = px.imshow(pivot_pct,
-                            labels=dict(x="연령대", y="세부사업", color="선호 비중(%)"),
-                            x=pivot_df.columns,
-                            y=pivot_df.index,
-                            text_auto=False,
-                            aspect="auto",
-                            color_continuous_scale="Reds")
-
-            fig.update_traces(
+            import plotly.graph_objects as go
+            fig = go.Figure(data=go.Heatmap(
+                z=pivot_pct.values,
+                x=pivot_df.columns,
+                y=pivot_df.index,
+                colorscale="Reds",
+                showscale=False,
                 text=text_matrix,
                 texttemplate="%{text}",
-                hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>",
-            )
+                hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{z:.1f}%<extra></extra>"
+            ))
             
             fig = apply_chart_style(fig)
             fig.update_layout(
@@ -2046,28 +2044,26 @@ if st.session_state.get("presentation_mode", False):
                 ]
 
                 with st.container(border=True):                    
-                    fig = px.imshow(pivot_pct,
-                                    labels=dict(x="연령대", y="프로그램명", color="선호 비중(%)"),
-                                    x=pivot_df.columns,
-                                    y=pivot_df.index,
-                                    text_auto=False,
-                                    aspect="auto",
-                                    color_continuous_scale=custom_colorscale)
-                    
-                    fig.update_traces(
+                    import plotly.graph_objects as go
+                    fig = go.Figure(data=go.Heatmap(
+                        z=pivot_pct.values,
+                        x=pivot_df.columns,
+                        y=pivot_df.index,
+                        colorscale=custom_colorscale,
+                        showscale=False,
                         text=text_matrix,
                         texttemplate="%{text}",
-                        hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>"
-                    )
+                        hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{z:.1f}%<extra></extra>"
+                    ))
                     
+                    fig = apply_chart_style(fig)
                     fig.update_layout(
                         xaxis_title="연령대", 
-                        yaxis_title="프로그램명", 
-                        height=900,  # 세로가 너무 촘촘하여 답답하다는 의견 수렴하여 높이 대폭 확장
+                        yaxis_title="프로그램명",
+                        height=1000,  # 강제로 높이 설정
                         margin=dict(l=50, r=50, t=30, b=30)
                     )
-                    fig.update_coloraxes(showscale=False) # 캡처본에 범례(컬러바)가 없었음
-                    st.plotly_chart(apply_chart_style(fig), use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("데이터가 없습니다.")
 
