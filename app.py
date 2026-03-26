@@ -2002,7 +2002,64 @@ if st.session_state.get("presentation_mode", False):
         draw_cross_analysis(df_yeon, col_map, presentation_mode=True)
 
     def _slide_pref_age():
-        draw_heatmap(df_yeon, col_map, '_연령대', '연령대별 선호 프로그램')
+        import plotly.express as px
+        project_col = col_map.get('세부사업', '세부사업')
+        perf_col = col_map.get('실적', '실적')
+        group_col = '_연령대'
+        age_order = ['10대미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대 이상']
+        
+        if group_col in df_yeon.columns and project_col in df_yeon.columns:
+            df_filtered = df_yeon[df_yeon[group_col].isin(age_order)].copy()
+            df_filtered = df_filtered[~df_filtered[project_col].astype(str).str.contains('중식', na=False)]
+            
+            if not df_filtered.empty:
+                stats = df_filtered.groupby([group_col, project_col])[perf_col].sum().reset_index()
+                top_stats = stats.sort_values([group_col, perf_col], ascending=[True, False]).groupby(group_col).head(3).copy()
+                
+                pivot_df = top_stats.pivot(index=project_col, columns=group_col, values=perf_col).fillna(0)
+                existing_cols = [col for col in age_order if col in pivot_df.columns]
+                pivot_df = pivot_df[existing_cols]
+                
+                pivot_pct = pivot_df.transpose().apply(lambda x: x / x.sum() * 100 if x.sum() != 0 else x, axis=1).transpose()
+                
+                pivot_df["_Total"] = pivot_df.sum(axis=1)
+                pivot_df = pivot_df.sort_values("_Total", ascending=True)
+                pivot_df = pivot_df.drop(columns=["_Total"])
+                pivot_pct = pivot_pct.loc[pivot_df.index]
+                
+                text_matrix = []
+                for i, row in pivot_df.iterrows():
+                    row_text = []
+                    for col in pivot_df.columns:
+                        val = pivot_df.loc[i, col]
+                        pct = pivot_pct.loc[i, col]
+                        if val > 0:
+                            row_text.append(f"<b>{val:,.0f}명<br>({pct:.1f}%)</b>")
+                        else:
+                            row_text.append("")
+                    text_matrix.append(row_text)
+                
+                with st.container(border=True):
+                    st.markdown(f"<div style='font-size:18px; font-weight:bold; color:{BRAND_GRAY}; margin-bottom:5px;'>🔥 연령대별 선호 프로그램 히트맵 (Top 3)</div>", unsafe_allow_html=True)
+                    
+                    fig = px.imshow(pivot_pct,
+                                    labels=dict(x="연령대", y="세부사업", color="선호 비중(%)"),
+                                    x=pivot_df.columns,
+                                    y=pivot_df.index,
+                                    text_auto=False,
+                                    aspect="auto",
+                                    color_continuous_scale="Reds")
+                    
+                    fig.update_traces(
+                        text=text_matrix,
+                        texttemplate="%{text}",
+                        hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{color:.1f}%<extra></extra>"
+                    )
+                    
+                    fig.update_layout(xaxis_title="연령대", yaxis_title="세부사업", height=500)
+                    st.plotly_chart(apply_chart_style(fig), use_container_width=True)
+            else:
+                st.info("데이터가 없습니다.")
 
     # 동적 슬라이드: 장애유형별 선호 프로그램 (도넛)
     DYNAMIC_PREF_SLIDES = []
