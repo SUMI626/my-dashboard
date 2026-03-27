@@ -1517,12 +1517,12 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
             group_sums = top_stats.groupby(group_col)[perf_col].transform('sum')
             top_stats['비중'] = (top_stats[perf_col] / group_sums) * 100
             
-            # 파란색 계열 중심의 팔레트 적용
-            blue_palette = [BRAND_BLUE, CHART_BLUE, "#A4CAD2", "#C6E0E6", "#E3EFF2"]
+            # 슬라이드의 히트맵과 통일감 있는 코랄/레드 톤 팔레트 적용 (가시성 고려)
+            coral_palette = ['#A3151A', '#CF474A', '#F28A73', '#FFC2A0', '#FFE6D5']
             top_stats['color_key'] = top_stats.apply(lambda row: f"{row[group_col]}_{row['rank']}", axis=1)
             color_map = {}
             for _, row in top_stats.iterrows():
-                color_map[row['color_key']] = blue_palette[min(row['rank'], len(blue_palette)-1)]
+                color_map[row['color_key']] = coral_palette[min(row['rank'], len(coral_palette)-1)]
 
             fig = px.bar(top_stats, x='비중', y=group_col, color='color_key',
                          orientation='h',
