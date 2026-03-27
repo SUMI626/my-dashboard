@@ -1485,32 +1485,15 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
 
     if group_col in df_yeon.columns and project_col in df_yeon.columns:
         with st.container(border=True):
-            if not presentation_mode:
-                col_title, col_filter = st.columns([3, 1])
-                with col_title:
-                    _fs = 24 if st.session_state.get("presentation_mode", False) else 18
-                st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>👥 연령대별 선호 프로그램 (비중 히트맵) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
-                
-                with col_filter:
-                    available_ages = [a for a in age_order if a in df_yeon[group_col].unique()]
-                    with st.popover("분석할 연령대 선택", use_container_width=True):
-                        actual_selection = checkbox_group("연령대 선택", available_ages, f"pref_age_{group_col}", is_sidebar=False)
-            else:
+            col_title, col_filter = st.columns([3, 1])
+            with col_title:
                 _fs = 24 if st.session_state.get("presentation_mode", False) else 18
-                st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px; margin-bottom:15px;'>👥 연령대별 선호 프로그램 (비중 히트맵) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 사업 제외</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:{_fs}px; font-weight:bold; color:{BRAND_GRAY}; margin-top:5px;'>👥 연령대별 선호 프로그램 (비중 분석) <span style='font-size:12px; font-weight:normal; color:#888;'>&nbsp;&nbsp;*중식제공 제외</span></div>", unsafe_allow_html=True)
+            
+            with col_filter:
                 available_ages = [a for a in age_order if a in df_yeon[group_col].unique()]
-                
-                # 프리젠테이션이 시작될 때 현재 session state를 따르거나, 없으면 전체 선택 반환
-                actual_selection = []
-                all_key = f"pref_age_{group_col}_all"
-                if st.session_state.get(all_key, True):
-                    actual_selection = available_ages
-                else:
-                    for i, opt in enumerate(available_ages):
-                        if st.session_state.get(f"pref_age_{group_col}_{i}", False):
-                            actual_selection.append(opt)
-                if not actual_selection:
-                    actual_selection = available_ages
+                with st.popover("분석할 연령대 선택", use_container_width=True):
+                    actual_selection = checkbox_group("연령대 선택", available_ages, f"pref_age_{group_col}", is_sidebar=False)
             
             if not actual_selection:
                 st.info("연령대를 최소 하나 이상 선택해 주세요.")
@@ -1524,69 +1507,46 @@ def draw_preferred_bar_age(df_yeon, col_map, presentation_mode=False):
                 return
 
             stats = df_filtered.groupby([group_col, project_col])[perf_col].sum().reset_index()
-            # 상위 5개 프로그램 
             top_stats = stats.sort_values([group_col, perf_col], ascending=[True, False]).groupby(group_col).head(5).copy()
+            top_stats['rank'] = top_stats.groupby(group_col).cumcount()
 
             if top_stats.empty:
-                st.warning("표시할 수 있는 데이터가 없습니다.")
+                st.warning("데이터가 없습니다.")
                 return
 
-            pivot_df = top_stats.pivot(index=project_col, columns=group_col, values=perf_col).fillna(0)
-            existing_cols = [col for col in age_order if col in pivot_df.columns and col in actual_selection]
-            if not existing_cols:
-                return
-            pivot_df = pivot_df[existing_cols]
-
-            pivot_pct = pivot_df.transpose().apply(lambda x: x / x.sum() * 100 if x.sum() != 0 else x, axis=1).transpose()
-
-            pivot_df["_Total"] = pivot_df.sum(axis=1)
-            pivot_df = pivot_df.sort_values("_Total", ascending=True)
-            pivot_df = pivot_df.drop(columns=["_Total"])
-
-            pivot_pct = pivot_pct.loc[pivot_df.index]
-
-            text_matrix = []
-            for i, row in pivot_df.iterrows():
-                row_text = []
-                for col in pivot_df.columns:
-                    val = pivot_df.loc[i, col]
-                    pct = pivot_pct.loc[i, col]
-                    if val > 0:
-                        is_dark_cell = (col in ['50대', '60대'] and i == '복지일자리(근무)') or \
-                                       (col in ['10대미만', '10대'] and i == '발달재활')
-                        if is_dark_cell:
-                            row_text.append(f"<span style='color: white;'><b>{val:,.0f}명<br>({pct:.1f}%)</b></span>")
-                        else:
-                            row_text.append(f"<b>{val:,.0f}명<br>({pct:.1f}%)</b>")
-                    else:
-                        row_text.append("")
-                text_matrix.append(row_text)
-
-            # 프리젠테이션 모드면 높이를 좀 더 크게
-            _h = min(700, max(450, len(pivot_df)*45 + 100)) if not presentation_mode else 750
+            group_sums = top_stats.groupby(group_col)[perf_col].transform('sum')
+            top_stats['비중'] = (top_stats[perf_col] / group_sums) * 100
             
-            import plotly.graph_objects as go
-            fig = go.Figure(data=go.Heatmap(
-                z=pivot_pct.values,
-                x=pivot_df.columns,
-                y=pivot_df.index,
-                colorscale="Reds",
-                showscale=False,
-                text=text_matrix,
-                texttemplate="%{text}",
-                textfont=dict(size=16 if presentation_mode else 12, color="#4D4D4D"),
-                hovertemplate="<b>%{y}</b><br>연령대: %{x}<br>비중: %{z:.1f}%<extra></extra>"
-            ))
+            # 파란색 계열 중심의 팔레트 적용
+            blue_palette = [BRAND_BLUE, CHART_BLUE, "#A4CAD2", "#C6E0E6", "#E3EFF2"]
+            top_stats['color_key'] = top_stats.apply(lambda row: f"{row[group_col]}_{row['rank']}", axis=1)
+            color_map = {}
+            for _, row in top_stats.iterrows():
+                color_map[row['color_key']] = blue_palette[min(row['rank'], len(blue_palette)-1)]
+
+            fig = px.bar(top_stats, x='비중', y=group_col, color='color_key',
+                         orientation='h',
+                         color_discrete_map=color_map,
+                         custom_data=[perf_col, '비중', project_col, 'rank'],
+                         category_orders={group_col: [a for a in age_order if a in actual_selection]})
             
-            fig = apply_chart_style(fig)
+            def update_trace_style(t):
+                if t.name.endswith('_0'):
+                    t.update(texttemplate='<b>%{customdata[2]} %{customdata[0]:,.0f}명 (%{customdata[1]:.1f}%)</b>', textfont_size=13, textposition='inside', insidetextanchor='middle')
+                else:
+                    t.update(texttemplate='<b>%{customdata[2]}<br>%{customdata[0]:,.0f}명 (%{customdata[1]:.1f}%)</b>', textfont_size=10, textposition='inside', insidetextanchor='middle')
+            
+            fig.for_each_trace(update_trace_style)
+            
             fig.update_layout(
-                xaxis_title="연령대",
-                yaxis_title="세부사업 (Top 5 인기 사업 위주)",
-                coloraxis_showscale=False,
-                height=_h,
-                margin=dict(t=20, b=30, l=10, r=10),
-                xaxis=dict(tickangle=0)
+                showlegend=False,
+                xaxis_title="프로그램별 참여 비중 (%)",
+                yaxis_title="연령대",
+                height=max(400, min(800, len(actual_selection) * 50 + 100)),
+                margin=dict(t=10, b=10, l=10, r=10),
+                barmode='stack'
             )
+            fig.update_xaxes(range=[0, 100])
             st.plotly_chart(apply_chart_style(fig), use_container_width=True)
 
 # 9. 장애유형 X 연령대별 선호 프로그램 (가로 막대그래프)
@@ -2084,7 +2044,7 @@ if st.session_state.get("presentation_mode", False):
                     fig.update_layout(
                         xaxis_title="연령대", 
                         yaxis_title="프로그램명",
-                        height=600,  # 강제로 높이 설정 (스크린에 맞게 축소)
+                        height=max(400, len(pivot_df)*60 + 150),  # 동적 높이 설정하여 항목이 적을 때 두꺼워지는 현상 방지
                         margin=dict(l=50, r=50, t=30, b=30)
                     )
                     st.plotly_chart(fig, use_container_width=True)
